@@ -19,7 +19,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "cyt_backend_api/*"
+          source: "./"
           target: ${{ secrets.VPS_BACKEND_PATH }}
           strip_components: 1
 
@@ -29,8 +29,6 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "."
-          target: ${{ secrets.VPS_DEPLOY_PATH }}
           script: |
             cd ${{ secrets.VPS_BACKEND_PATH }}
             npm install --production
