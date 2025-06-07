@@ -37,5 +37,5 @@ jobs:
             npm install --production || { echo "❌ npm install failed"; exit 1; }
 
             echo "🚀 Restarting PM2..."
-            pm2 restart cyt-backend || pm2 start server.js --name cyt-backend
+            pm2 restart cyt-backend || pm2 start index.js --name cyt-backend
 
