@@ -6,7 +6,7 @@ router.get("/", (req, res, next) => {
   console.log("✅ Backend deployed successfully");
   res.status(201).json({
     status: true,
-    message: "Welcome to cyt",
+    message: "Welcome to ChooseYourTherapist.",
   });
 });
 
