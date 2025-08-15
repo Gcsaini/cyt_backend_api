@@ -1,8 +1,5 @@
 import expressAsyncHandler from "express-async-handler";
 import Users from "../models/Users.js";
-import { getPutObjectUrl } from "../services/s3Bucket.js";
-import fs from "fs";
-import { v4 as uuidv4 } from "uuid";
 import { deleteFile } from "../services/fileUpload.js";
 import UserInfo from "../models/UserInfo.js";
 export const getProfile = expressAsyncHandler(async (req, res, next) => {
@@ -33,10 +30,10 @@ export const updateUser = expressAsyncHandler(async (req, res, next) => {
   try {
     let profile = "";
     if (req.file) {
-      let filename = `${uuidv4()}_${req.file.filename}`;
-      const fileContent = fs.readFileSync(req.file.path);
-      profile = await getPutObjectUrl(filename, fileContent, "image");
-      deleteFile(req.file.path);
+      profile = req.file.filename;
+      // const fileContent = fs.readFileSync(req.file.path);
+      // profile = await getPutObjectUrl(filename, fileContent, "image");
+      // deleteFile(req.file.path);
     }
     const filter = { _id: user._id };
     const update = {

@@ -394,6 +394,7 @@ export const sendForgotPasswordOtp = expressAsyncHandler(
       res.status(400);
       return next(new Error(error));
     }
+    
     try {
       let email = req.body.email.toLowerCase();
       const user = await Users.findOne({ email });
@@ -416,11 +417,13 @@ export const sendForgotPasswordOtp = expressAsyncHandler(
           throw new Error("Unable to send OTP");
         } else {
           const otp = generate6DigitOTP();
+          
           user.otp = otp;
           user.otp_count = user.otp_count + 1;
           await user.save();
           const subject = "Password Reset";
           const text = `OTP.`;
+          
 
           const html = `<p>Dear ${user.name},</p><p>Thank you for registering with Choose Your Therapist.
                 </p><p>Use the below OTP to verify your account
@@ -567,8 +570,12 @@ export const verifyOtpAndResetPassword = expressAsyncHandler(
 );
 
 export const login = expressAsyncHandler(async (req, res, next) => {
-  const { password } = req.body;
-  let email = req.body.email.toLowerCase();
+  let { password,email } = req.body;
+  if(!email ||  !password){
+     res.status(200);
+        throw new Error("Email/Password is required!");
+  }
+   email = email.toLowerCase();
   try {
     const user = await Users.findOne({ email });
     if (user) {
@@ -596,6 +603,7 @@ export const login = expressAsyncHandler(async (req, res, next) => {
       throw new Error("This user not exist");
     }
   } catch (err) {
+    console.log("error",err);
     res.status(400);
     return next(new Error(err));
   }

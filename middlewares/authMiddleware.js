@@ -13,9 +13,10 @@ export const isAuth = expressAsyncHandler(async (req, res, next) => {
       const decoded = Jwt.verify(token, process.env.JWT_SECRET);
 
       const user = await Users.findById(decoded.userId).select(
-        "name email phone profile bio"
+        "name email phone profile bio role"
       );
-      if (user && decoded.role === 0) {
+
+      if (user && user.role === 0) {
         req.user = user;
         next();
       } else {

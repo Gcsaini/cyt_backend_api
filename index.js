@@ -7,6 +7,7 @@ const { connect } = mongoose;
 env.config({ path: "./.env" });
 mongoose.set("strictQuery", true);
 
+
 connect(process.env.MONGODB_URI)
   .then(() => {
     const PORT = process.env.PORT || 4000;
