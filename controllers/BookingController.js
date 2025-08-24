@@ -3,6 +3,9 @@ import Joi from "joi";
 import Booking from "../models/Booking.js";
 import mongoose from "mongoose";
 import Therapists from "../models/Therapists.js";
+import { generate6DigitOTP, generateQrCode } from "../helper/generate.js";
+import UPIInfo from "../models/UPIInfo.js";
+import UserInfo from "../models/UserInfo.js";
 export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
   const validateSchema = Joi.object({
     phone: Joi.string().required().messages({
@@ -26,20 +29,6 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
       "any.required": "Whom is required",
       "any.only": 'Whom must be one of "For Other" or "Self"',
     }),
-
-    date: Joi.string().required().messages({
-      "any.required": "Date is required",
-    }),
-    open_time: Joi.string().required().messages({
-      "string.base": "Open time must be a string",
-      "string.empty": "Open time is required",
-      "any.required": "Open time is required",
-    }),
-    close_time: Joi.string().required().messages({
-      "string.base": "Close time must be a string",
-      "string.empty": "Close time is required",
-      "any.required": "Close time is required",
-    }),
     amount: Joi.number().min(0).required().messages({
       "number.base": "Amount must be a number",
       "number.min": "Amount must be greater than or equal to 0",
@@ -62,11 +51,9 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
       whom,
       cname,
       realtion_with_client,
-      gender,
-      dob,
-      open_time,
-      close_time,
+      age,
       amount,
+      notes,
       therapist,
     } = req.body;
 
@@ -79,7 +66,7 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
 
     if (isExist) {
       let client = req.user._id;
-      let date = new Date(req.body.date);
+      let otp = generate6DigitOTP();
       const booked = await Booking.create({
         therapist,
         client,
@@ -89,12 +76,10 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
         whom,
         cname,
         realtion_with_client,
-        gender,
-        dob,
-        date,
-        open_time,
-        close_time,
+        age,
+        notes,
         amount,
+        otp,
       });
       if (booked) {
         res.status(201).json({
@@ -113,7 +98,132 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
       return next(new Error("Error finding therapist."));
     }
   } catch (err) {
-    console.log("errorr", err);
+    return next(new Error(err.message));
+  }
+});
+
+export const generatePaymentQR = expressAsyncHandler(async (req, res, next) => {
+  const bookingId = req.params.id;
+  if (!bookingId) {
+    res.status(400);
+    return next(new Error("Please pass booking ID"));
+  }
+  try {
+    const getUpi = await UPIInfo.findOne();
+
+    if (!getUpi) {
+      res.status(400);
+      return next(new Error("Id Not found!"));
+    }
+    const isBookingDetail = await Booking.findById(bookingId);
+    if (!isBookingDetail) {
+      res.status(400);
+      return next(new Error("booking not found with this id"));
+    }
+    if (isBookingDetail.is_payment_success) {
+      return res.status(400).json({
+        message: "Booking amount already received for this id",
+        status: false,
+      });
+    }
+    const data = {
+      upiID: getUpi.upi_id,
+      name: getUpi.name,
+      amount: isBookingDetail.amount,
+      note: "Booking Therapist",
+    };
+
+    const qrImage = await generateQrCode(data);
+    const retrunData = {
+      qrImage,
+      upi_details: getUpi,
+      booking_id: isBookingDetail._id,
+    };
+    res.status(201).json({
+      status: true,
+      message: "Profile has been updated.",
+      data: retrunData,
+    });
+  } catch (err) {
+    return next(new Error(err.message));
+  }
+});
+
+export const saveTransactionId = expressAsyncHandler(async (req, res, next) => {
+  const validateSchema = Joi.object({
+    transactionId: Joi.string().required().messages({
+      "string.base": "Transaction ID must be a string",
+      "string.empty": "Transaction ID is required",
+      "any.required": "Transaction ID is required",
+    }),
+
+    booking_id: Joi.string().required().messages({
+      "string.base": "Booking ID must be a string",
+      "string.empty": "Booking ID is required",
+      "any.required": "Booking ID is required",
+    }),
+  }).unknown(true);
+
+  const { error } = validateSchema.validate(req.body);
+
+  if (error) {
+    res.status(400);
+    return next(new Error(error));
+  }
+
+  try {
+    const { transactionId, booking_id } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(booking_id)) {
+      res.status(400);
+      return next(new Error("Booking invalid."));
+    }
+
+    const isExist = await Booking.findById(booking_id);
+
+    if (isExist) {
+      isExist.transaction = transactionId;
+      isExist.save();
+      res.status(201).json({
+        status: true,
+        message: "Transaction successful.",
+        data: isExist,
+      });
+    } else {
+      res.status(400);
+      return next(new Error("Error finding booking."));
+    }
+  } catch (err) {
+    return next(new Error(err.message));
+  }
+});
+
+export const getBookings = expressAsyncHandler(async (req, res, next) => {
+  try {
+    let result = await Booking.find({ clinet: req.user._id })
+      .populate({
+        path: "client",
+        select: "name email mobile",
+      })
+      .populate({
+        path: "therapist",
+        select: "_id name profile",
+      })
+      .exec();
+    const user = await UserInfo.findById(req.user._id);
+    const data = result.map((booking) => {
+      return {
+        ...booking.toObject(),
+        user_age: user?.age || null,
+      };
+    });
+
+    res.status(201).json({
+      status: true,
+      message: "Fetched successfully.",
+      data: data || [],
+    });
+  } catch (err) {
     return next(new Error(err.message));
   }
 });

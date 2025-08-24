@@ -1,4 +1,4 @@
-import Jwt from "jsonwebtoken";
+import Jwt, { decode } from "jsonwebtoken";
 import Users from "../models/Users.js";
 import expressAsyncHandler from "express-async-handler";
 
@@ -13,7 +13,7 @@ export const isAuth = expressAsyncHandler(async (req, res, next) => {
       const decoded = Jwt.verify(token, process.env.JWT_SECRET);
 
       const user = await Users.findById(decoded.userId).select(
-        "name email phone profile bio role"
+        "_id name email phone profile bio role"
       );
 
       if (user && user.role === 0) {
@@ -46,7 +46,7 @@ export const isAuthCommon = expressAsyncHandler(async (req, res, next) => {
       const decoded = Jwt.verify(token, process.env.JWT_SECRET);
 
       const user = await Users.findById(decoded.userId).select(
-        "name email phone profile bio"
+        "name email phone profile bio role"
       );
 
       if (user) {
@@ -81,7 +81,7 @@ export const isTherapist = expressAsyncHandler(async (req, res, next) => {
 
       // Find the user and check the role
       const user = await Users.findById(decoded.userId).select(
-        "name email phone profile bio"
+        "name email phone profile bio role"
       );
 
       if (user && decoded.role === 1) {

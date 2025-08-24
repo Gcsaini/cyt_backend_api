@@ -2,9 +2,6 @@ import expressAsyncHandler from "express-async-handler";
 import Joi from "joi";
 import mongoose from "mongoose";
 import Workshop from "../models/Workshop.js";
-import { getPutObjectUrl } from "../services/s3Bucket.js";
-import { v4 as uuidv4 } from "uuid";
-import fs from "fs";
 
 export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
   const workshopSchema = Joi.object({
@@ -86,6 +83,8 @@ export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
 
   try {
     const imagefile = req.files["image"] ? req.files["image"][0] : null;
+    console.log("filenameee", req.files);
+    console.log("filenameee", imagefile);
     const pdffile = req.files["pdf"] ? req.files["pdf"][0] : null;
 
     if (!imagefile || !pdffile) {
@@ -95,6 +94,8 @@ export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
     }
     const MAX_IMAGE_SIZE = 1 * 1024 * 1024;
     const MAX_PDF_SIZE = 2 * 1024 * 1024;
+    let workshop_image = null;
+    let content_pdf = null;
 
     if (imagefile.size > MAX_IMAGE_SIZE) {
       res.status(400);
@@ -103,6 +104,8 @@ export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
           MAX_IMAGE_SIZE / (1024 * 1024)
         } MB.`
       );
+    } else {
+      workshop_image = imagefile.filename;
     }
 
     if (pdffile.size > MAX_PDF_SIZE) {
@@ -110,19 +113,9 @@ export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
       throw new Error(
         `PDF file size should not exceed ${MAX_PDF_SIZE / (1024 * 1024)} MB.`
       );
+    } else {
+      content_pdf = pdffile.filename;
     }
-
-    let filename = `${uuidv4()}_${imagefile.filename}`;
-    const fileContent = fs.readFileSync(imagefile.path);
-    let pdffilename = `${uuidv4()}_${pdffile.filename}`;
-    const pdffileContent = fs.readFileSync(pdffile.path);
-
-    const workshop_image = await getPutObjectUrl(
-      filename,
-      fileContent,
-      "image"
-    );
-    const content_pdf = await getPutObjectUrl(pdffilename, pdffileContent);
 
     let post_by = req.user._id;
     const savedWorkshop = await Workshop.create({
@@ -242,43 +235,30 @@ export const UpdateWorkshop = expressAsyncHandler(async (req, res, next) => {
     const isExists = await Workshop.findById(workshopId);
     if (isExists) {
       const imagefile = req.files["image"] ? req.files["image"][0] : null;
+
       const pdffile = req.files["pdf"] ? req.files["pdf"][0] : null;
       const MAX_IMAGE_SIZE = 1 * 1024 * 1024;
       const MAX_PDF_SIZE = 2 * 1024 * 1024;
       let workshop_image = isExists.workshop_image;
       let content_pdf = isExists.content_pdf;
 
-      if (imagefile) {
-        if (imagefile.size > MAX_IMAGE_SIZE) {
-          res.status(400);
-          throw new Error(
-            `Image file size should not exceed ${
-              MAX_IMAGE_SIZE / (1024 * 1024)
-            } MB.`
-          );
-        } else {
-          let filename = `${uuidv4()}_${imagefile.filename}`;
-          const fileContent = fs.readFileSync(imagefile.path);
-          workshop_image = await getPutObjectUrl(
-            filename,
-            fileContent,
-            "image"
-          );
-        }
+      if (imagefile && imagefile.size > MAX_IMAGE_SIZE) {
+        res.status(400);
+        throw new Error(
+          `Image file size should not exceed ${
+            MAX_IMAGE_SIZE / (1024 * 1024)
+          } MB.`
+        );
+      } else {
+        workshop_image = imagefile.filename;
       }
-      if (pdffile) {
-        if (pdffile.size > MAX_PDF_SIZE) {
-          res.status(400);
-          throw new Error(
-            `PDF file size should not exceed ${
-              MAX_PDF_SIZE / (1024 * 1024)
-            } MB.`
-          );
-        } else {
-          let pdffilename = `${uuidv4()}_${pdffile.filename}`;
-          const pdffileContent = fs.readFileSync(pdffile.path);
-          content_pdf = await getPutObjectUrl(pdffilename, pdffileContent);
-        }
+      if (pdffile && pdffile.size > MAX_PDF_SIZE) {
+        res.status(400);
+        throw new Error(
+          `PDF file size should not exceed ${MAX_PDF_SIZE / (1024 * 1024)} MB.`
+        );
+      } else {
+        content_pdf = pdffile.filename;
       }
 
       await Workshop.findByIdAndUpdate(

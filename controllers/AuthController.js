@@ -234,15 +234,6 @@ export const sendAproveMail = expressAsyncHandler(async (req, res, next) => {
 });
 
 export const register = expressAsyncHandler(async (req, res, next) => {
-  const complexityOptions = {
-    min: 6,
-    max: 250,
-    lowerCase: 1,
-    upperCase: 1,
-    numeric: 1,
-    symbol: 1,
-    requirementCount: 2,
-  };
   const registerSchema = Joi.object({
     name: Joi.string().min(3).max(30).required(),
     email: Joi.string().email().required(),
@@ -255,17 +246,6 @@ export const register = expressAsyncHandler(async (req, res, next) => {
         "number.min": "Mobile number should be 10 digit.",
         "number.max": "Mobile number should be 10 digit",
       }),
-    password: passwordComplexity(complexityOptions).required().messages({
-      "password.minOfUppercase":
-        "{#label} should contain at least {#min} uppercase character",
-      "password.minOfSpecialCharacters":
-        "{#label} should contain at least {#min} special character",
-      "password.minOfLowercase":
-        "{#label} should contain at least {#min} lowercase character",
-      "password.minOfNumeric":
-        "{#label} should contain at least {#min} numeric character",
-      "password.noWhiteSpaces": "{#label} should not contain white spaces",
-    }),
   });
 
   const { error } = registerSchema.validate(req.body);
@@ -274,7 +254,7 @@ export const register = expressAsyncHandler(async (req, res, next) => {
     return next(error);
   }
 
-  const { name, phone, password } = req.body;
+  const { name, phone } = req.body;
   let email = req.body.email;
 
   try {
@@ -332,7 +312,6 @@ export const register = expressAsyncHandler(async (req, res, next) => {
         name,
         email,
         phone,
-        password,
         otp,
         otp_count,
       });
@@ -394,7 +373,7 @@ export const sendForgotPasswordOtp = expressAsyncHandler(
       res.status(400);
       return next(new Error(error));
     }
-    
+
     try {
       let email = req.body.email.toLowerCase();
       const user = await Users.findOne({ email });
@@ -417,13 +396,12 @@ export const sendForgotPasswordOtp = expressAsyncHandler(
           throw new Error("Unable to send OTP");
         } else {
           const otp = generate6DigitOTP();
-          
+
           user.otp = otp;
           user.otp_count = user.otp_count + 1;
           await user.save();
           const subject = "Password Reset";
           const text = `OTP.`;
-          
 
           const html = `<p>Dear ${user.name},</p><p>Thank you for registering with Choose Your Therapist.
                 </p><p>Use the below OTP to verify your account
@@ -479,10 +457,12 @@ export const verifyOtp = expressAsyncHandler(async (req, res, next) => {
         user.otp = "";
         user.otp_count = 0;
         await user.save();
+
         res.status(201).json({
           message: "Otp verified successfully",
-          data: {},
+          data: user,
           status: true,
+          token: generateToken(user._id, user.role),
         });
       } else {
         res.status(400);
@@ -570,44 +550,68 @@ export const verifyOtpAndResetPassword = expressAsyncHandler(
 );
 
 export const login = expressAsyncHandler(async (req, res, next) => {
-  let { password,email } = req.body;
-  if(!email ||  !password){
-     res.status(200);
-        throw new Error("Email/Password is required!");
-  }
-   email = email.toLowerCase();
   try {
-    const user = await Users.findOne({ email });
-    if (user) {
-      if (user.role === 1 && user.is_verified == 0) {
-        res.status(200);
-        throw new Error("This email id is not activated yet");
-      }
-      user.comparePassword(password).then((isMatched) => {
-        if (isMatched) {
-          res.status(200).json({
-            message: "Login successfully",
-            status: true,
-            data: {},
-            token: generateToken(user._id, user.role),
-          });
-        } else {
-          return res.status(200).json({
-            message: "Invalid email or password",
-            status: false,
-          });
-        }
-      });
-    } else {
-      res.status(400);
-      throw new Error("This user not exist");
+    let {email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required!", status: false });
     }
+
+    email = email.toLowerCase();
+    const user = await Users.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User does not exist", status: false });
+    }
+
+    // Check if admin but not verified
+    if (user.role === 1 && user.is_verified === 0) {
+      return res.status(403).json({ message: "This email id is not activated yet", status: false });
+    }
+
+    const now = Date.now();
+    const timeDiffSec = getTimeDifferenceInSeconds(user.updatedAt);
+    const otp = generate6DigitOTP();
+
+    // OTP limits
+    if (user.otp_count >= 5 && timeDiffSec < 3600) {
+      const hours = Math.ceil((3600 - timeDiffSec) / 3600);
+      return res.status(429).json({
+        message: `Can't send OTP! Maximum limit exceeded. Please try after ${hours} hour(s).`,
+        status: false,
+      });
+    }
+
+    if (user.otp_count <= 5 && timeDiffSec < 30) {
+      return res.status(429).json({ message: "Unable to send OTP. Try again later.", status: false });
+    }
+
+    user.otp = otp;
+    user.otp_count = (user.otp_count || 0) + 1;
+    await user.save();
+
+    // Send mail
+    const subject = "Welcome Again";
+    const text = `Hello, thank you for coming again. Best regards, CYT`;
+    const html = `
+      <p>Hello ${user.name},</p>
+      <p>Please use the following one-time password to validate your login:</p>
+      <h2>OTP - ${otp}</h2>
+    `;
+
+    await sendMail(email, subject, text, html);
+
+    return res.status(201).json({
+      message: "OTP has been sent to your email",
+      status: true,
+      data: {},
+    });
   } catch (err) {
-    console.log("error",err);
-    res.status(400);
-    return next(new Error(err));
+    console.error("Login error:", err);
+    return next(err); // let your global error handler handle this
   }
 });
+
 
 export const adminLogin = expressAsyncHandler(async (req, res) => {
   const { password } = req.body;

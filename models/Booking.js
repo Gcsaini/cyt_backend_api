@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 const { Schema } = mongoose;
-const infoSchema = new Schema({
+
+const bookingSchema = new Schema({
   client: {
     type: Schema.Types.ObjectId,
     ref: "User",
@@ -8,12 +9,11 @@ const infoSchema = new Schema({
   },
   therapist: {
     type: Schema.Types.ObjectId,
-    ref: "Therapist",
+    ref: "Therapists",
     required: true,
   },
   transaction: {
-    type: Schema.Types.ObjectId,
-    ref: "Transaction",
+    type: String,
     default: null,
   },
   phone: {
@@ -23,6 +23,14 @@ const infoSchema = new Schema({
   service: {
     type: String,
     required: true,
+  },
+  notes: {
+    type: String,
+    default: "",
+  },
+  file: {
+    type: String,
+    default: "",
   },
   format: {
     type: String,
@@ -46,28 +54,43 @@ const infoSchema = new Schema({
   },
   dob: {
     type: Date,
-    default: "",
+    default: null,
   },
-  date: {
+  age: {
+    type: Number,
+  },
+  otp: {
+    type: Number,
+    required:true
+  },
+  booking_date: {
     type: Date,
     required: true,
+    default: Date.now,
   },
-  open_time: {
-    type: String, // You can use a String to represent time, or use Date if you need a specific format
-    required: true,
+
+  session_started_at: {
+    type: Date,
+    default: null,
   },
-  close_time: {
-    type: String, // You can use a String to represent time, or use Date if you need a specific format
-    required: true,
+
+  session_completed_at: {
+    type: Date,
+    default: null,
   },
+
   amount: {
     type: Number,
     required: true,
   },
-  is_payement_success: {
-    type: Number,
-    default: 0,
+  is_payment_success: {
+    type: Boolean,
+    default: false,
+  },
+  is_session_completed: {
+    type: Boolean,
+    default: false,
   },
 });
 
-export default mongoose.model("Booking", infoSchema);
+export default mongoose.model("Booking", bookingSchema);
