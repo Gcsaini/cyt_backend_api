@@ -62,18 +62,12 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
           return next(new Error("This user is already registred with us"));
         }
       }
-      if (!req.file || req.file == null) {
-        res.status(400);
-        return next(new Error("Please uplolad you resume."));
-      } else {
-        if (req.file.size > 200 * 1024) {
+      if (req.file.size > 500 * 1024) {
           res.status(400);
           return next(new Error("File size should be less than 200KB!"));
         }
-      }
 
-      let url = await getPutObjectUrl(req.file, "resumes");
-      deleteFile(req.file.path);
+      let url = req.file.filename;
       if (url) {
         const user = await Therapists.create({
           name: name,
@@ -129,13 +123,12 @@ export const aproveTherapist = expressAsyncHandler(async (req, res, next) => {
       return next(new Error("This user is not exists"));
     }
 
-    const password = crypto.randomBytes(8).toString("hex"); // Generates a 16-character password
-    const subject = "Approved profile";
+     const subject = "Approved profile";
     const text = `Thank you for registering with Choose Your Therapist.`;
 
     const html = `<p>Dear ${userExists.name},</p><p>Thank you for registering with Choose Your Therapist.
                 </p><p>We are pleased to inform you that your profile has been successfully approved. Below are your credentials to log in to your account:
-                </p><p>Email - ${userExists.email}</p><p><b>Login Credentials:</b></p><p><b>Email:</b> ${userExists.email}</p><p><b>Password:</b> ${password}</p><p>You can now access your profile and start offering your services to clients. Please follow the link below to log in:</p><p></br><b><a href="chooseyourtherapist.in/login">Login Here</a></b></p><p></br>If you encounter any issues or have any questions, please do not hesitate to reach out to our support team at support@chooseyourtherapist.in.</p>`;
+                </p><p>Email - ${userExists.email}</p><p><b>Login Credentials:</b></p><p><b>Email:</b> ${userExists.email}</p><p>You can now access your profile and start offering your services to clients. Please follow the link below to log in:</p><p></br><b><a href="chooseyourtherapist.in/login">Login Here</a></b></p><p></br>If you encounter any issues or have any questions, please do not hesitate to reach out to our support team at support@chooseyourtherapist.in.</p>`;
 
     const isMailSent = await sendMail(userExists.email, subject, text, html);
 
@@ -157,7 +150,6 @@ export const aproveTherapist = expressAsyncHandler(async (req, res, next) => {
       name: userExists.name,
       email: userExists.email,
       phone: userExists.phone.toString(),
-      password: password,
       role: 1,
       is_verified: 1,
     });
@@ -201,11 +193,10 @@ export const sendAproveMail = expressAsyncHandler(async (req, res, next) => {
       return next(new Error("This user is not exists"));
     }
 
-    const password = crypto.randomBytes(8).toString("hex"); // Generates a 16-character password
-    const subject = "Welcome to CYT";
+     const subject = "Welcome to CYT";
     const text = `Hello Thank you for registering.Best regards,CYT`;
 
-    const html = `<p>Hello ${userExists.name},</p><p>Thank you for registering.</p><p>Best regards,CYT<br>Use the below credentials to login</p><p>Email - ${userExists.email}</p><p>Password - ${password}</p>`;
+    const html = `<p>Hello ${userExists.name},</p><p>Thank you for registering.</p><p>Best regards,CYT<br>Use the below credentials to login</p><p>Email - ${userExists.email}</p>`;
     const isMailSent = await sendMail(userExists.email, subject, text, html);
 
     let is_mail_sent = isMailSent ? 1 : 0;
@@ -215,8 +206,7 @@ export const sendAproveMail = expressAsyncHandler(async (req, res, next) => {
       { is_mail_sent },
       { new: true }
     );
-    await Users.findByIdAndUpdate(userId, { password }, { new: true });
-
+   
     if (!updatedUser) {
       res.status(400);
       return next(new Error("Failed to update user"));
