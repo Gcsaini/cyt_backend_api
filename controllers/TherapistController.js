@@ -4,10 +4,6 @@ import Users from "../models/Users.js";
 import Bank from "../models/Bank.js";
 import Fees from "../models/Fees.js";
 import Availbility from "../models/Availbility.js";
-import { getPutObjectUrl } from "../services/s3Bucket.js";
-import fs from "fs";
-import { v4 as uuidv4 } from "uuid";
-import { deleteFile } from "../services/fileUpload.js";
 import mongoose from "mongoose";
 import Workshop from "../models/Workshop.js";
 export const updateprofile = expressAsyncHandler(async (req, res, next) => {
@@ -42,8 +38,7 @@ export const updateprofile = expressAsyncHandler(async (req, res, next) => {
         res.status(400);
         return next(new Error("File size should be less than 200KB!"));
       }
-      profile = await getPutObjectUrl(req.file);
-      deleteFile(req.file.path);
+      profile = req.file.filename;
     }
     updateUser.phone = phone;
     updateUser.name = name;

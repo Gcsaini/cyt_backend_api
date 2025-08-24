@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 const { model } = mongoose;
 const Schema = mongoose.Schema;
-import bcrypt from "bcryptjs";
+
 
 //0-User
 //1-Therapist
@@ -27,10 +27,6 @@ const UserSchema = new Schema(
       type: String,
       default:
         "https://e7.pngegg.com/pngimages/753/432/png-clipart-user-profile-2018-in-sight-user-conference-expo-business-default-business-angle-service-thumbnail.png",
-    },
-    password: {
-      type: String,
-      default: null,
     },
     bio: {
       type: String,
@@ -75,21 +71,5 @@ const UserSchema = new Schema(
   { timestamps: true }
 );
 
-UserSchema.pre("save", async function (next) {
-  // if (!this.isModified("password")) {
-  //   return next();
-  // }
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (err) {
-    next(err);
-  }
-});
-
-UserSchema.methods.comparePassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
-};
 
 export default model("User", UserSchema);

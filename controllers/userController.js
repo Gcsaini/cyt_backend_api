@@ -1,6 +1,5 @@
 import expressAsyncHandler from "express-async-handler";
 import Users from "../models/Users.js";
-import { deleteFile } from "../services/fileUpload.js";
 import UserInfo from "../models/UserInfo.js";
 export const getProfile = expressAsyncHandler(async (req, res, next) => {
   const user_id = req.user._id;
@@ -31,9 +30,6 @@ export const updateUser = expressAsyncHandler(async (req, res, next) => {
     let profile = "";
     if (req.file) {
       profile = req.file.filename;
-      // const fileContent = fs.readFileSync(req.file.path);
-      // profile = await getPutObjectUrl(filename, fileContent, "image");
-      // deleteFile(req.file.path);
     }
     const filter = { _id: user._id };
     const update = {

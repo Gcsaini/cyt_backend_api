@@ -1,5 +1,4 @@
 import { Router } from "express";
-import multer from "multer";
 import { isAuth, isTherapist } from "../middlewares/authMiddleware.js";
 import {
   aproveTherapist,
