@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   bookTherapist,
+  bookTherapistAnomalously,
   generatePaymentQR,
   getBookings,
   saveTransactionId,
@@ -10,11 +11,12 @@ const router = Router();
 
 router.post("/book-therapist", isAuth, bookTherapist);
 
+router.post("/book-therapist-anomalously", bookTherapistAnomalously);
+
 router.get("/get-payment/:id", generatePaymentQR);
 
 router.get("/get-bookings", isAuth, getBookings);
 
 router.post("/save-payment", saveTransactionId);
-
 
 export default router;
