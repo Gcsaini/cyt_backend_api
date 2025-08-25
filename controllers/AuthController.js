@@ -9,10 +9,8 @@ import Therapists from "../models/Therapists.js";
 import { sendMail } from "../helper/mailer.js";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
-import { getPutObjectUrl } from "../services/s3Bucket.js";
 import { getTimeDifferenceInSeconds } from "../helper/time.js";
 import { generate6DigitOTP } from "../helper/generate.js";
-import { deleteFile } from "../services/fileUpload.js";
 
 export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
   if (!req.file) {
