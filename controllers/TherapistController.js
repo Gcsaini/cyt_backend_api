@@ -137,7 +137,6 @@ export const updateAccountDetails = expressAsyncHandler(
 
 export const updateFeeDetails = expressAsyncHandler(async (req, res, next) => {
   const { fees } = req.body;
-  console.log(fees)
 
   try {
     const filter = { user: req.user._id };

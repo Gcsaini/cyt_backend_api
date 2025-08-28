@@ -594,7 +594,6 @@ export const login = expressAsyncHandler(async (req, res, next) => {
       data: {},
     });
   } catch (err) {
-    console.error("Login error:", err);
     return next(err); // let your global error handler handle this
   }
 });
