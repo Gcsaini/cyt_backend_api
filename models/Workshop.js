@@ -21,6 +21,7 @@ const WorkshopSchema = new Schema(
     duration: { type: String, required: true },
     language: { type: String, required: true },
     event_date: { type: String, default: null },
+    event_end_date: { type: String, default: null },
     mrp: { type: String, required: true },
     price: { type: String, required: true },
     content_pdf: { type: String, default: null },

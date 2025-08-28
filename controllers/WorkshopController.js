@@ -40,6 +40,11 @@ export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
       "date.empty": "Event date cannot be an empty field",
       "any.required": "Event date is a required field",
     }),
+    event_end_date: Joi.date().required().messages({
+      "date.base": "Event End date should be a valid date",
+      "date.empty": "Event End date cannot be an empty field",
+      "any.required": "Event End date is a required field",
+    }),
     mrp: Joi.number().required().messages({
       "number.base": "MRP should be a number",
       "number.empty": "MRP cannot be an empty field",
@@ -73,6 +78,7 @@ export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
     level,
     language,
     event_date,
+    event_end_date,
     mrp,
     price,
     desc,
@@ -83,8 +89,6 @@ export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
 
   try {
     const imagefile = req.files["image"] ? req.files["image"][0] : null;
-    console.log("filenameee", req.files);
-    console.log("filenameee", imagefile);
     const pdffile = req.files["pdf"] ? req.files["pdf"][0] : null;
 
     if (!imagefile || !pdffile) {
@@ -93,15 +97,14 @@ export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
         .json({ message: "Both image and PDF files are required." });
     }
     const MAX_IMAGE_SIZE = 1 * 1024 * 1024;
-    const MAX_PDF_SIZE = 2 * 1024 * 1024;
+    const MAX_PDF_SIZE = 5 * 1024 * 1024;
     let workshop_image = null;
     let content_pdf = null;
 
     if (imagefile.size > MAX_IMAGE_SIZE) {
       res.status(400);
       throw new Error(
-        `Image file size should not exceed ${
-          MAX_IMAGE_SIZE / (1024 * 1024)
+        `Image file size should not exceed ${MAX_IMAGE_SIZE / (1024 * 1024)
         } MB.`
       );
     } else {
@@ -126,6 +129,7 @@ export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
       level,
       language,
       event_date,
+      event_end_date,
       mrp,
       price,
       desc,
@@ -189,6 +193,11 @@ export const UpdateWorkshop = expressAsyncHandler(async (req, res, next) => {
       "date.empty": "Event date cannot be an empty field",
       "any.required": "Event date is a required field",
     }),
+    event_end_date: Joi.date().required().messages({
+      "date.base": "Event End date should be a valid date",
+      "date.empty": "Event End date cannot be an empty field",
+      "any.required": "Event End date is a required field",
+    }),
     mrp: Joi.number().required().messages({
       "number.base": "MRP should be a number",
       "number.empty": "MRP cannot be an empty field",
@@ -222,6 +231,7 @@ export const UpdateWorkshop = expressAsyncHandler(async (req, res, next) => {
     level,
     language,
     event_date,
+    event_end_date,
     mrp,
     price,
     desc,
@@ -233,62 +243,63 @@ export const UpdateWorkshop = expressAsyncHandler(async (req, res, next) => {
 
   try {
     const isExists = await Workshop.findById(workshopId);
-    if (isExists) {
-      const imagefile = req.files["image"] ? req.files["image"][0] : null;
-
-      const pdffile = req.files["pdf"] ? req.files["pdf"][0] : null;
-      const MAX_IMAGE_SIZE = 1 * 1024 * 1024;
-      const MAX_PDF_SIZE = 2 * 1024 * 1024;
-      let workshop_image = isExists.workshop_image;
-      let content_pdf = isExists.content_pdf;
-
-      if (imagefile && imagefile.size > MAX_IMAGE_SIZE) {
-        res.status(400);
-        throw new Error(
-          `Image file size should not exceed ${
-            MAX_IMAGE_SIZE / (1024 * 1024)
-          } MB.`
-        );
-      } else {
-        workshop_image = imagefile.filename;
-      }
-      if (pdffile && pdffile.size > MAX_PDF_SIZE) {
-        res.status(400);
-        throw new Error(
-          `PDF file size should not exceed ${MAX_PDF_SIZE / (1024 * 1024)} MB.`
-        );
-      } else {
-        content_pdf = pdffile.filename;
-      }
-
-      await Workshop.findByIdAndUpdate(
-        workshopId,
-        {
-          title,
-          category,
-          short_desc,
-          level,
-          language,
-          event_date,
-          mrp,
-          price,
-          desc,
-          event_time,
-          duration,
-          workshop_image,
-          content_pdf,
-        },
-        { new: true }
-      );
-      res.status(201).json({
-        message: "Workshop updated successfully.",
-        data: {},
-        status: true,
-      });
-    } else {
+    if (!isExists) {
       res.status(400);
       throw new Error("No workshop found.");
     }
+    const imagefile = req.files?.image?.[0] || null;
+    const pdffile = req.files?.pdf?.[0] || null;
+
+    const MAX_IMAGE_SIZE = 1 * 1024 * 1024;
+    const MAX_PDF_SIZE = 5 * 1024 * 1024;
+    let workshop_image = isExists.workshop_image;
+    let content_pdf = isExists.content_pdf;
+
+    if (imagefile) {
+      if (imagefile.size > MAX_IMAGE_SIZE) {
+        return res.status(400).json({
+          message: `Image file size should not exceed ${MAX_IMAGE_SIZE / (1024 * 1024)} MB.`,
+          status: false,
+        });
+      }
+      workshop_image = imagefile.filename;
+    }
+    if (pdffile) {
+      if (pdffile.size > MAX_PDF_SIZE) {
+        return res.status(400).json({
+          message: `PDF file size should not exceed ${MAX_PDF_SIZE / (1024 * 1024)} MB.`,
+          status: false,
+        });
+      }
+      content_pdf = pdffile.filename;
+    }
+
+    const updatedWorkShop = await Workshop.findByIdAndUpdate(
+      workshopId,
+      {
+        title,
+        category,
+        short_desc,
+        level,
+        language,
+        event_date,
+        event_end_date,
+        mrp,
+        price,
+        desc,
+        event_time,
+        duration,
+        workshop_image,
+        content_pdf,
+      },
+      { new: true }
+    );
+    res.status(200).json({
+      message: "Workshop updated successfully.",
+      data: updatedWorkShop,
+      status: true,
+    });
+
   } catch (error) {
     res.status(400);
     throw new Error(error.message);
@@ -301,6 +312,9 @@ export const CreateReview = expressAsyncHandler(async (req, res, next) => {
     profile: Joi.string().email().required(),
     star: Joi.string()
       .length(1)
+
+
+
       .pattern(/^[0-9]+$/)
       .required()
       .messages({
