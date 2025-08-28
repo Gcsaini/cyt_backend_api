@@ -9,10 +9,8 @@ import Therapists from "../models/Therapists.js";
 import { sendMail } from "../helper/mailer.js";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
-import { getPutObjectUrl } from "../services/s3Bucket.js";
 import { getTimeDifferenceInSeconds } from "../helper/time.js";
-import { generate6DigitOTP } from "../helper/generate.js";
-import { deleteFile } from "../services/fileUpload.js";
+import { generate6DigitOTP, generateProfileCode } from "../helper/generate.js";
 
 export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
   if (!req.file) {
@@ -50,18 +48,11 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
         res.status(400);
         return next(new Error("This user is already registred with us"));
       }
-
-      const therapistExists = await Therapists.findOne({ email });
-
-      if (therapistExists) {
-        if (therapistExists.is_aproved === 0) {
-          res.status(400);
-          return next(new Error("Your ID is not aproved yet by Admin"));
-        } else {
-          res.status(400);
-          return next(new Error("This user is already registred with us"));
-        }
+      if (userExists && userExists.is_verified === 0) {
+        res.status(400);
+        return next(new Error("Your ID is not aproved yet by Admin"));
       }
+
       if (!req.file || req.file == null) {
         res.status(400);
         return next(new Error("Please uplolad you resume."));
@@ -71,39 +62,45 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
           return next(new Error("File size should be less than 200KB!"));
         }
       }
+      let url = req.file.filename;
+      const otp = generate6DigitOTP();
+      const subject = "Welcome to CYT";
+      const text = `Hello Thank you for registering.Best regards,CYT`;
 
-      let url = await getPutObjectUrl(req.file, "resumes");
-      deleteFile(req.file.path);
-      if (url) {
-        const user = await Therapists.create({
-          name: name,
-          email: email,
-          phone: phone.toString(),
+      const html = `<p>Hello ${name},</p><p>Thank you for registering.</p><p>Use the below otp to verify account</p><p>Otp:${otp}</p>`;
+
+      const user = await Users.create({
+        name: name,
+        email: email,
+        phone: phone.toString(),
+        otp,
+        otp_count: 1,
+        is_verified: 0,
+        role: 1
+      });
+      if (user) {
+        await sendMail(email, subject, text, html);
+        await Therapists.create({
+          user:user._id,
           profile_type: type,
-          mode: mode,
+          mode,
           serve_type: serve,
           resume: url,
+          profile_code: generateProfileCode()
+        })
+        res.status(201).json({
+          status: true,
+          message:
+            "Thank you for submitting your resume. Our admin will review your profile soon. You will receive approval via email.",
+          data: {
+            name: user.name,
+            email: user.email,
+            phone: user.phone
+          },
         });
-        if (user) {
-          res.status(201).json({
-            status: true,
-            message:
-              "Thank you for submitting your resume. Our admin will review your profile soon. You will receive approval via email.",
-            data: {
-              name: user.name,
-              email: user.email,
-              phone: user.phone,
-              profile_type: user.profile_type,
-              mode: user.mode,
-              serve_type: user.serve_type,
-            },
-          });
-        } else {
-          res.status(400);
-          return next(new Error("Failed to create user"));
-        }
       } else {
-        return next(new Error("Failed to upload file."));
+        res.status(400);
+        return next(new Error("Failed to create user"));
       }
     } catch (err) {
       return next(new Error(err.message));
@@ -260,13 +257,6 @@ export const register = expressAsyncHandler(async (req, res, next) => {
   try {
     email = email.toLowerCase();
 
-    const therapistExists = await Therapists.findOne({ email });
-
-    if (therapistExists) {
-      res.status(400);
-      return next(new Error("This user is already registred with us"));
-    }
-
     const userExists = await Users.findOne({ email });
     let otp = generate6DigitOTP();
     const subject = "Welcome to CYT";
@@ -275,10 +265,7 @@ export const register = expressAsyncHandler(async (req, res, next) => {
     const html = `<p>Hello ${name},</p><p>Thank you for registering.</p><p>Use the below otp to verify account</p><p>Otp:${otp}</p>`;
 
     if (userExists) {
-      if (userExists.is_verified === 1) {
-        res.status(400);
-        throw new Error("This user is already registred with us");
-      } else if (
+      if (
         userExists.otp_count >= 5 &&
         getTimeDifferenceInSeconds(userExists.updatedAt) < 3600
       ) {
@@ -551,7 +538,7 @@ export const verifyOtpAndResetPassword = expressAsyncHandler(
 
 export const login = expressAsyncHandler(async (req, res, next) => {
   try {
-    let {email } = req.body;
+    let { email } = req.body;
 
     if (!email) {
       return res.status(400).json({ message: "Email is required!", status: false });

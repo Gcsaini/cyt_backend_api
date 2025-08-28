@@ -13,3 +13,15 @@ export const generateQrCode = async (data) => {
 
   return qrImage;
 };
+
+export function generateProfileCode() {
+  const prefix = "CYT";
+
+  // Get current timestamp in milliseconds
+  const timestamp = Date.now().toString();
+
+  // Take last 8 digits for uniqueness
+  const uniquePart = timestamp.slice(-8);
+
+  return `${prefix}${uniquePart}`;
+}

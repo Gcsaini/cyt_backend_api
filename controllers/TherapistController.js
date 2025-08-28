@@ -1,5 +1,5 @@
 import expressAsyncHandler from "express-async-handler";
-import Therapists from "../models/Therapists.js";
+import Therapists, { defaultFees } from "../models/Therapists.js";
 import Users from "../models/Users.js";
 import Bank from "../models/Bank.js";
 import Fees from "../models/Fees.js";
@@ -31,43 +31,41 @@ export const updateprofile = expressAsyncHandler(async (req, res, next) => {
   }
 
   try {
-    let updateUser = await Therapists.findById(req.user._id);
-    let profile = updateUser.profile;
+    let newProfile = "";
     if (req.file && req.file !== null) {
       if (req.file.size > 200 * 1024) {
         res.status(400);
         return next(new Error("File size should be less than 200KB!"));
       }
-      profile = req.file.filename;
+      newProfile = req.file.filename;
     }
-    updateUser.phone = phone;
-    updateUser.name = name;
-    updateUser.license_number = license_number;
-    updateUser.gender = gender;
-    updateUser.state = state;
-    updateUser.office_address = office_address;
-    updateUser.year_of_exp = year_of_exp;
-    updateUser.qualification = qualification;
-    updateUser.language_spoken = language_spoken;
-    updateUser.session_formats = session_formats;
-    updateUser.bio = bio;
-    updateUser.profile = profile;
-    await updateUser.save();
-    if (req.user.name !== name || req.user.phone !== phone) {
-      await Users.findByIdAndUpdate(
-        req.user._id,
-        {
-          phone,
-          name,
-        },
-        { new: true }
-      );
-    }
+
+    let therapist = await Therapists.findOne({ user: req.user._id });
+    therapist.license_number = license_number;
+    therapist.gender = gender;
+    therapist.state = state;
+    therapist.office_address = office_address;
+    therapist.year_of_exp = year_of_exp;
+    therapist.qualification = qualification;
+    therapist.language_spoken = language_spoken;
+    therapist.session_formats = session_formats;
+    await therapist.save();
+    await Users.findByIdAndUpdate(
+      req.user._id,
+      {
+        phone,
+        name,
+        bio,
+        gender,
+        profile: newProfile || req.user.profile
+      },
+      { new: true }
+    );
 
     res.status(201).json({
       status: true,
       message: "Profile has been updated.",
-      data: { profile },
+      data: therapist,
     });
   } catch (err) {
     return next(new Error(err.message));
@@ -79,8 +77,8 @@ export const updateServiceExperties = expressAsyncHandler(
     const { services, experties } = req.body;
 
     try {
-      const updatedUser = await Therapists.findByIdAndUpdate(
-        req.user._id,
+      const updatedUser = await Therapists.findOneAndUpdate(
+        { user: req.user._id },
         {
           services,
           experties,
@@ -138,28 +136,16 @@ export const updateAccountDetails = expressAsyncHandler(
 );
 
 export const updateFeeDetails = expressAsyncHandler(async (req, res, next) => {
-  const { icv, ica, icip, cca, ccv, ccip, tca, tcv, tcip } = req.body;
+  const { fees } = req.body;
+  console.log(fees)
 
   try {
-    const filter = { _id: req.user._id };
-    const update = {
-      $set: {
-        icv: icv,
-        ica: ica,
-        icip: icip,
-        cca: cca,
-        ccv: ccv,
-        ccip: ccip,
-        tca: tca,
-        tcv: tcv,
-        tcip: tcip,
-      },
-    };
+    const filter = { user: req.user._id };
+    const update = { $set: { fees: fees } };
 
-    const options = { upsert: true }; // upsert option
-    const result = await Fees.updateOne(filter, update, options);
+    const result = await Therapists.updateOne(filter, update);
 
-    if (result.upsertedCount || result.modifiedCount) {
+    if (result) {
       res.status(201).json({
         status: true,
         message: "Fee details has been updated.",
@@ -179,9 +165,9 @@ export const updateAvailabilityDetails = expressAsyncHandler(
     const { schedule } = req.body;
 
     try {
-      const isExist = await Availbility.findOne({ user_id: req.user._id });
+      const isExist = await Therapists.findOne({ user: req.user._id });
       if (isExist) {
-        isExist.schedule = schedule;
+        isExist.availabilities = schedule;
         await isExist.save();
         res.status(201).json({
           status: true,
@@ -189,21 +175,12 @@ export const updateAvailabilityDetails = expressAsyncHandler(
           data: [],
         });
       } else {
-        const availability = new Availbility({
-          user_id: req.user._id,
-          schedule: schedule,
-        });
-
-        await availability.save();
-        return res.status(201).json({
-          status: true,
-          message: "Details have been saved.",
-          data: [],
-        });
+        res.status(400);
+        return next(new Error("Therapist not exists!"));
       }
     } catch (error) {
       res.status(400);
-      return next(new Error(`Failed to update details,${err}`));
+      return next(new Error(`Failed to update details,${error.message}`));
     }
   }
 );
@@ -296,12 +273,11 @@ export const getFilteredTherapists = expressAsyncHandler(
     } = req.query;
     try {
       page = parseInt(page) || 1;
-      pageSize = pageSize || 10;
+      pageSize = parseInt(pageSize) || 10;
       const skip = (page - 1) * pageSize;
-      const limit = pageSize;
 
       const matchConditions = {
-        is_aproved: 1,
+        show_to_page: 1,
       };
 
       if (priority && parseInt(priority) < 3 && parseInt(priority) > 0) {
@@ -329,132 +305,27 @@ export const getFilteredTherapists = expressAsyncHandler(
       }
 
       if (search && search.trim() !== "") {
-        const nameRegex = new RegExp(search, "i");
-        matchConditions.name = { $regex: nameRegex };
+        const searchRegex = new RegExp(search, "i");
+        matchConditions.$or = [
+          { "services.service": searchRegex },
+          { experties: searchRegex },
+          { state: searchRegex },
+        ];
       }
 
-      if (services && services.trim() !== "") {
-        const serviceRegex = new RegExp(`(^|,)\\s*${services}\\s*(,|$)`, "i");
-        matchConditions.services = { $regex: serviceRegex };
-      }
-
-      const data = await Therapists.aggregate([
-        {
-          $facet: {
-            data: [
-              {
-                $lookup: {
-                  from: "fees",
-                  localField: "_id",
-                  foreignField: "_id",
-                  as: "fees",
-                },
-              },
-              {
-                $unwind: {
-                  path: "$fees",
-                },
-              },
-              {
-                $lookup: {
-                  from: "availabilities",
-                  localField: "_id",
-                  foreignField: "user_id",
-                  as: "availabilities",
-                },
-              },
-              {
-                $unwind: {
-                  path: "$availabilities",
-                },
-              },
-              {
-                $match: matchConditions,
-              },
-              {
-                $project: {
-                  name: 1,
-                  phone: 1,
-                  email: 1,
-                  serve_type: 1,
-                  profile_type: 1,
-                  mode: 1,
-                  profile_code: 1,
-                  license_number: 1,
-                  gender: 1,
-                  state: 1,
-                  office_address: 1,
-                  year_of_exp: 1,
-                  qualification: 1,
-                  language_spoken: 1,
-                  session_formats: 1,
-                  services: 1,
-                  experties: 1,
-                  bio: 1,
-                  profile: 1,
-                  icv: "$fees.icv",
-                  ica: "$fees.ica",
-                  icip: "$fees.icip",
-                  cca: "$fees.cca",
-                  ccv: "$fees.ccv",
-                  ccip: "$fees.ccip",
-                  tca: "$fees.tca",
-                  tcv: "$fees.tcv",
-                  tcip: "$fees.tcip",
-                  schedule: "$availabilities.schedule",
-                },
-              },
-              {
-                $skip: skip,
-              },
-              {
-                $limit: limit,
-              },
-            ],
-            totalCount: [
-              {
-                $lookup: {
-                  from: "fees",
-                  localField: "_id",
-                  foreignField: "_id",
-                  as: "fees",
-                },
-              },
-              {
-                $unwind: "$fees",
-              },
-              {
-                $lookup: {
-                  from: "availabilities",
-                  localField: "_id",
-                  foreignField: "user_id",
-                  as: "availabilities",
-                },
-              },
-              {
-                $unwind: "$availabilities",
-              },
-              {
-                $match: matchConditions,
-              },
-              {
-                $count: "count",
-              },
-            ],
-          },
-        },
-        {
-          $project: {
-            data: 1,
-            totalCount: { $arrayElemAt: ["$totalCount.count", 0] },
-          },
-        },
+      const [data, totalCount] = await Promise.all([
+        Therapists.find(matchConditions)
+          .skip(skip)
+          .limit(pageSize)
+          .select("-resume -__v -is_mail_sent -is_aproved -priority")
+          .populate("user", "name phone email bio profile gender age dob"),
+        Therapists.countDocuments(matchConditions),
       ]);
 
       res.status(200).json({
         message: "Fetched successfully",
-        data: data[0].data,
-        totalCount: data[0].totalCount || 0,
+        data,
+        totalCount,
         status: true,
       });
     } catch (error) {
@@ -659,9 +530,9 @@ export const getTherapist = expressAsyncHandler(async (req, res, next) => {
   const user = req.user;
 
   try {
-    const userExists = await Therapists.findById(user._id).select(
-      "-_id -resume -__v -is_mail_sent -is_aproved"
-    );
+    const userExists = await Therapists.findOne({ user: user._id })
+      .select("-_id -resume -__v -is_mail_sent")
+      .populate("user", "name phone email bio profile age gender dob");
     res.status(201).json({
       message: "Fetched successfully",
       data: userExists || {},
@@ -669,7 +540,7 @@ export const getTherapist = expressAsyncHandler(async (req, res, next) => {
     });
   } catch (error) {
     res.status(400);
-    throw new Error("Unknow error");
+    throw new Error(error?.message || "Unknown Error");
   }
 });
 

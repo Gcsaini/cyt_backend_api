@@ -6,7 +6,6 @@ import Therapists from "../models/Therapists.js";
 import { generate6DigitOTP, generateQrCode } from "../helper/generate.js";
 import UPIInfo from "../models/UPIInfo.js";
 import UserInfo from "../models/UserInfo.js";
-import { isValidEmail } from "../helper/isValidMail.js";
 import Users from "../models/Users.js";
 import { sendMail } from "../helper/mailer.js";
 import { getTimeDifferenceInSeconds } from "../helper/time.js";
@@ -38,6 +37,13 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
       "number.min": "Amount must be greater than or equal to 0",
       "any.required": "Amount is required",
     }),
+    age: Joi.number().integer().min(18).max(100).required().messages({
+    "number.base": "Age must be a number",
+    "number.integer": "Age must be an integer",
+    "number.min": "Age must be at least 12",
+    "number.max": "Age must be less than or equal to 100",
+    "any.required": "Age is required",
+  }),
   }).unknown(true);
 
   const { error } = validateSchema.validate(req.body);
@@ -140,6 +146,13 @@ export const bookTherapistAnomalously = expressAsyncHandler(async (req, res, nex
       "number.min": "Amount must be greater than or equal to 0",
       "any.required": "Amount is required",
     }),
+    age: Joi.number().integer().min(18).max(100).required().messages({
+    "number.base": "Age must be a number",
+    "number.integer": "Age must be an integer",
+    "number.min": "Age must be at least 12",
+    "number.max": "Age must be less than or equal to 100",
+    "any.required": "Age is required",
+  }),
   }).unknown(true);
 
 
@@ -222,11 +235,6 @@ export const bookTherapistAnomalously = expressAsyncHandler(async (req, res, nex
           user.otp_count = user.otp_count + 1;
           await user.save();
           await sendMail(email, subject, text, html);
-          // res.status(201).json({
-          //   message: "Otp has been sent to your mail id",
-          //   data: {},
-          //   status: true,
-          // });
         }
       } else {
         let otp_count = 1;

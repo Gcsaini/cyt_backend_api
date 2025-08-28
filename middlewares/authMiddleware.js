@@ -81,7 +81,7 @@ export const isTherapist = expressAsyncHandler(async (req, res, next) => {
 
       // Find the user and check the role
       const user = await Users.findById(decoded.userId).select(
-        "name email phone profile bio role"
+        "name email phone profile bio role age gender dob"
       );
 
       if (user && decoded.role === 1) {
