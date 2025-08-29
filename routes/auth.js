@@ -22,8 +22,8 @@ router.get("/test", (req, res, next) => {
     status: true,
     message: "test api",
     data: {
-      name: "Gopichand saini",
-      email: "gcsaini@gmail.com",
+      name: "Gopichand",
+      email: "gcsaini0215@gmail.com",
       phone: "8755512976",
     },
   });
