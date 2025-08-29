@@ -48,17 +48,6 @@ const bookingSchema = new Schema({
     type: String,
     default: "",
   },
-  gender: {
-    type: String,
-    default: "",
-  },
-  dob: {
-    type: Date,
-    default: null,
-  },
-  age: {
-    type: Number,
-  },
   otp: {
     type: Number,
     required:true
@@ -78,7 +67,6 @@ const bookingSchema = new Schema({
     type: Date,
     default: null,
   },
-
   amount: {
     type: Number,
     required: true,

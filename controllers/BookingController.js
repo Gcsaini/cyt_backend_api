@@ -175,16 +175,10 @@ export const bookTherapistAnomalously = expressAsyncHandler(async (req, res, nex
       age,
       amount,
       notes,
-      isLoggedIn,
       therapist,
     } = req.body;
 
     let email = req.body.email;
-
-    if (!isLoggedIn && !isValidEmail(email)) {
-      res.status(400);
-      return next(new Error("Eamil is not valid."));
-    }
 
     if (!mongoose.Types.ObjectId.isValid(therapist)) {
       res.status(400);
@@ -195,13 +189,6 @@ export const bookTherapistAnomalously = expressAsyncHandler(async (req, res, nex
 
     if (isExist) {
       email = email.toLowerCase();
-
-      const therapistExists = await Therapists.findOne({ email });
-
-      if (therapistExists) {
-        res.status(400);
-        return next(new Error("This email is associated with a therapist! Please enter another mail id!"));
-      }
 
       let user = await Users.findOne({ email });
       let generatedOtp = generate6DigitOTP();
@@ -245,6 +232,7 @@ export const bookTherapistAnomalously = expressAsyncHandler(async (req, res, nex
           phone,
           otp: generatedOtp,
           otp_count,
+          age
         });
       }
       let client = user._id;
@@ -258,7 +246,6 @@ export const bookTherapistAnomalously = expressAsyncHandler(async (req, res, nex
         whom,
         cname,
         realtion_with_client,
-        age,
         notes,
         amount,
         otp,

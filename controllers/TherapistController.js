@@ -341,98 +341,17 @@ export const getProfile = expressAsyncHandler(async (req, res, next) => {
       res.status(400);
       return next(new Error("Invalid user ID format"));
     }
-    const data = await Therapists.aggregate([
-      {
-        $match: {
-          _id: mongoose.Types.ObjectId(userId),
-        },
-      },
-      {
-        $lookup: {
-          from: "fees",
-          localField: "_id",
-          foreignField: "_id",
-          as: "fees",
-        },
-      },
-      {
-        $unwind: "$fees",
-      },
-      {
-        $lookup: {
-          from: "availabilities",
-          localField: "_id",
-          foreignField: "user_id",
-          as: "availabilities",
-        },
-      },
-      {
-        $unwind: {
-          path: "$availabilities",
-          preserveNullAndEmptyArrays: true, // Use this if you want to include therapists without availabilities
-        },
-      },
-      {
-        $lookup: {
-          from: "workshops",
-          let: { userId: "$_id" },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ["$post_by", "$$userId"] },
-              },
-            },
-          ],
-          as: "workshops",
-        },
-      },
-      {
-        $addFields: {
-          workshops: {
-            $ifNull: ["$workshops", []],
-          },
-        },
-      },
-      {
-        $project: {
-          name: 1,
-          serve_type: 1,
-          profile_type: 1,
-          mode: 1,
-          profile_code: 1,
-          license_number: 1,
-          gender: 1,
-          state: 1,
-          office_address: 1,
-          year_of_exp: 1,
-          qualification: 1,
-          language_spoken: 1,
-          session_formats: 1,
-          services: 1,
-          experties: 1,
-          bio: 1,
-          profile: 1,
-          icv: "$fees.icv",
-          ica: "$fees.ica",
-          icip: "$fees.icip",
-          cca: "$fees.cca",
-          ccv: "$fees.ccv",
-          ccip: "$fees.ccip",
-          tca: "$fees.tca",
-          tcv: "$fees.tcv",
-          tcip: "$fees.tcip",
-          schedule: "$availabilities.schedule", // Include schedule in the projection
-          userWorkshop: "$workshops",
-        },
-      },
-    ]);
+   const therapist = await Therapists.findById(userId)
+      .select(" -resume -__v -is_mail_sent")
+      .populate("user", "name phone email bio profile age gender dob");
 
     res.status(200).json({
       message: "Fetched successfully",
-      data: data,
+      data: therapist||{},
       status: true,
     });
   } catch (error) {
+    console.log(error);
     res.status(400);
     throw new Error(`Unknow error`);
   }
