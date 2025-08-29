@@ -32,7 +32,6 @@ export const sendMail = async (to, subject, text, html) => {
     });
     return true;
   } catch (error) {
-    console.log(error);
     return false;
   }
 };
