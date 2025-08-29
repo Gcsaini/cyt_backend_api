@@ -89,6 +89,8 @@ export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
 
   try {
     const imagefile = req.files["image"] ? req.files["image"][0] : null;
+    console.log("filenameee", req.files);
+    console.log("filenameee", imagefile);
     const pdffile = req.files["pdf"] ? req.files["pdf"][0] : null;
 
     if (!imagefile || !pdffile) {
