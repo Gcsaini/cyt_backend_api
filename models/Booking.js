@@ -12,9 +12,9 @@ const bookingSchema = new Schema({
     ref: "Therapists",
     required: true,
   },
-  transaction: {
-    type: String,
-    default: null,
+  transaction:{
+    type: Schema.Types.ObjectId,
+    ref: "Transaction"
   },
   phone: {
     type: String,
@@ -50,7 +50,7 @@ const bookingSchema = new Schema({
   },
   otp: {
     type: Number,
-    required:true
+    required: true
   },
   booking_date: {
     type: Date,
@@ -66,14 +66,6 @@ const bookingSchema = new Schema({
   session_completed_at: {
     type: Date,
     default: null,
-  },
-  amount: {
-    type: Number,
-    required: true,
-  },
-  is_payment_success: {
-    type: Boolean,
-    default: false,
   },
   is_session_completed: {
     type: Boolean,

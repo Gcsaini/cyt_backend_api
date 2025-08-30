@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  BookWorkshop,
   CreateWorkshop,
   DeleteWorkshop,
   DisableWorkshop,
@@ -45,5 +46,7 @@ router.get("/get-workshops-web", GetWorkshopsWeb);
 router.get("/disable-workshop", isTherapist, DisableWorkshop);
 
 router.get("/delete-workshop", isTherapist, DeleteWorkshop);
+
+router.get("/book-workshop", BookWorkshop);
 
 export default router;

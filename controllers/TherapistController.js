@@ -341,9 +341,22 @@ export const getProfile = expressAsyncHandler(async (req, res, next) => {
       res.status(400);
       return next(new Error("Invalid user ID format"));
     }
-   const therapist = await Therapists.findById(userId)
+   let therapist = await Therapists.findById(userId)
       .select(" -resume -__v -is_mail_sent")
-      .populate("user", "name phone email bio profile age gender dob");
+      .populate("user", "name phone email bio profile age gender dob").lean();;
+    
+    if (!therapist) {
+      return res.status(404).json({
+        message: "Therapist not found",
+        data: {},
+        status: false,
+      });
+    }
+     const today = new Date().toISOString().split("T")[0]; 
+    const workshop = await Workshop.find({ post_by: therapist._id, is_active: 1,event_date: { $gte: today } })
+
+
+     therapist.workshops = workshop;
 
     res.status(200).json({
       message: "Fetched successfully",

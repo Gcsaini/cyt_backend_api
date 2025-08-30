@@ -2,6 +2,10 @@ import expressAsyncHandler from "express-async-handler";
 import Joi from "joi";
 import mongoose from "mongoose";
 import Workshop from "../models/Workshop.js";
+import Users from "../models/Users.js";
+import WorkshopBooking from "../models/WorkshopBooking.js";
+import { generate6DigitOTP } from "../helper/generate.js";
+import { sendMail } from "../helper/mailer.js";
 
 export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
   const workshopSchema = Joi.object({
@@ -89,8 +93,6 @@ export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
 
   try {
     const imagefile = req.files["image"] ? req.files["image"][0] : null;
-    console.log("filenameee", req.files);
-    console.log("filenameee", imagefile);
     const pdffile = req.files["pdf"] ? req.files["pdf"][0] : null;
 
     if (!imagefile || !pdffile) {
@@ -122,7 +124,9 @@ export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
       content_pdf = pdffile.filename;
     }
 
-    let post_by = req.user._id;
+    const therapist = await Users.findById(req.user._id);
+
+    let post_by = therapist._id;
     const savedWorkshop = await Workshop.create({
       post_by,
       title,
@@ -453,17 +457,28 @@ export const GetWorkshop = expressAsyncHandler(async (req, res, next) => {
 export const GetWorkshopWeb = expressAsyncHandler(async (req, res, next) => {
   try {
     let { workshopId } = req.params;
-    const workshop = await Workshop.findById(workshopId).populate(
-      "post_by",
-      "name profile profile_type bio experties"
-    );
+    const today = new Date().toISOString().split("T")[0];
+    const workshop = await Workshop.findOne({
+      _id: workshopId,
+      is_active: 1,
+      event_date: { $gte: today }, // only future or ongoing
+    }).populate({
+      path: "post_by", // this is the therapist
+      select: "profile_type experties user", // include user so it can be populated
+      populate: {
+        path: "user", // populate the user inside therapist
+        select: "name phone email bio profile age gender dob", // fields you need
+      },
+    });
     if (workshop) {
       const moreWorkshopsByThisUser = await Workshop.find({
         post_by: workshop.post_by._id,
         _id: { $ne: workshop._id },
+        event_date: { $gte: today },
       });
       const similarWorkshop = await Workshop.find({
         post_by: { $ne: workshop.post_by._id },
+        event_date: { $gte: today },
       });
       res.status(201).json({
         message: "Fetched successfully",
@@ -524,5 +539,219 @@ export const GetWorkshopsWeb = expressAsyncHandler(async (req, res, next) => {
   } catch (error) {
     res.status(400);
     throw new Error(error);
+  }
+});
+
+export const BookWorkshop = expressAsyncHandler(async (req, res, next) => {
+  const bookingSchema = Joi.object({
+    name: Joi.string()
+      .min(2)
+      .when("is_logged_in", {
+        is: false,
+        then: Joi.required(),
+        otherwise: Joi.optional().allow(""),
+      })
+      .messages({
+        "string.base": "Name must be a text",
+        "string.min": "Name must be at least 2 characters long",
+        "any.required": "Name is required for guest users",
+      }),
+
+    email: Joi.string()
+      .email()
+      .when("is_logged_in", {
+        is: false,
+        then: Joi.required(),
+        otherwise: Joi.optional().allow(""),
+      })
+      .messages({
+        "string.email": "Please provide a valid email address",
+        "any.required": "Email is required for guest users",
+      }),
+
+    phone: Joi.string()
+      .pattern(/^[0-9]{10}$/)
+      .when("is_logged_in", {
+        is: false,
+        then: Joi.required(),
+        otherwise: Joi.optional().allow(""),
+      })
+      .messages({
+        "string.pattern.base": "Phone number must be exactly 10 digits",
+        "any.required": "Phone number is required for guest users",
+      }),
+
+    is_student: Joi.boolean().required(),
+
+    program_name: Joi.string()
+      .when("is_student", {
+        is: true,
+        then: Joi.required().messages({
+          "any.required": "Program name is required when student",
+        }),
+        otherwise: Joi.optional().allow(""),
+      })
+      .messages({
+        "string.base": "Program name must be a text",
+      }),
+
+    institution_name: Joi.string()
+      .when("is_student", {
+        is: true,
+        then: Joi.required().messages({
+          "any.required": "Institution name is required when student",
+        }),
+        otherwise: Joi.optional().allow(""),
+      })
+      .messages({
+        "string.base": "Institution name must be a text",
+      }),
+
+    is_logged_in: Joi.boolean().required().messages({
+      "boolean.base": "is_logged_in must be true or false",
+      "any.required": "is_logged_in flag is required",
+    }),
+
+    amount: Joi.number()
+      .positive()
+      .required()
+      .messages({
+        "number.base": "Amount must be a number",
+        "number.positive": "Amount must be greater than 0",
+        "any.required": "Amount is required",
+      }),
+
+    user_id: Joi.string()
+      .when("is_logged_in", {
+        is: true,
+        then: Joi.required(),
+        otherwise: Joi.optional().allow(null, ""),
+      })
+      .messages({
+        "any.required": "user_id is required for logged-in users",
+        "string.base": "user_id must be a string",
+      }),
+
+    workshopId: Joi.string().required().messages({
+      "any.required": "Workshop ID is required",
+      "string.base": "Workshop ID must be a string",
+    }),
+  });
+
+
+
+
+  const { error } = bookingSchema.validate(req.body);
+
+  if (error) {
+    res.status(400);
+    return next(new Error(error.details[0].message));
+  }
+
+  try {
+    const {
+      name,
+      phone,
+      is_student,
+      program_name,
+      institution_name,
+      is_logged_in,
+      user_id,
+      workshopId,
+    } = req.body;
+
+    let email = req.body.email;
+
+    if (!mongoose.Types.ObjectId.isValid(workshopId)) {
+      res.status(400);
+      return next(new Error("Workshop Not Exist."));
+    }
+
+    const isExist = await Workshop.findById(workshopId);
+
+    if (!isExist) {
+      res.status(400);
+      return next(new Error("Workshop not exist."));
+    }
+
+    let user;
+    let generatedOtp = generate6DigitOTP();
+    let otp_count = 1;
+
+    if (is_logged_in) {
+      if (!mongoose.Types.ObjectId.isValid(user_id)) {
+        res.status(400);
+        return next(new Error("Invalid user id."));
+      }
+      user = await Users.findById(user_id);
+      if (!user) {
+        res.status(400);
+        return next(new Error("User not found."));
+      }
+
+      user.otp = generatedOtp;
+      user.otp_count = (user.otp_count || 0) + 1;
+      await user.save();
+    } else {
+      email = email.toLowerCase();
+      user = await Users.findOne({ email });
+      if (user) {
+        if (user.is_verified === 1) {
+          res.status(400);
+          return next(new Error("This user is already registred with us"));
+        }
+        user.otp = generatedOtp;
+        user.otp_count = (user.otp_count || 0) + 1;
+        await user.save();
+      } else {
+
+        user = await Users.create({
+          name,
+          email,
+          phone,
+          otp: generatedOtp,
+          otp_count
+        });
+
+      }
+    }
+
+    const subject = "Welcome to CYT";
+    const text = `Hello Thank you for registering.Best regards,CYT`;
+
+    const html = `<p>Hello ${user.name},</p><p>Thank you for registering.</p><p>Use the below otp to verify account</p><p>Otp:${generatedOtp}</p>`;
+
+    await sendMail(email, subject, text, html);
+    const isBookingExists = await WorkshopBooking.findOne({
+      workshop: isExist._id,
+      user: user._id,
+    });
+    if (isBookingExists) {
+      res.status(400);
+      return next(new Error("You have already booked this workshop."));
+    }
+    const booked = await WorkshopBooking.create({
+      workshop: isExist._id,
+      user: user._id,
+      is_student,
+      program_name,
+      institution_name,
+    });
+    if (booked) {
+
+      res.status(201).json({
+        status: true,
+        message: "Booking saved successfully.And an otp sent to your email.",
+        data: {
+          id: booked._id,
+        },
+      });
+    } else {
+      res.status(400);
+      return next(new Error("Failed to checkout."));
+    }
+
+  } catch (err) {
+    return next(new Error(err.message));
   }
 });
