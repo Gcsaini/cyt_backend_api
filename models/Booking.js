@@ -12,13 +12,9 @@ const bookingSchema = new Schema({
     ref: "Therapists",
     required: true,
   },
-  transaction:{
+  transaction: {
     type: Schema.Types.ObjectId,
     ref: "Transaction"
-  },
-  phone: {
-    type: String,
-    required: true,
   },
   service: {
     type: String,
@@ -44,11 +40,19 @@ const bookingSchema = new Schema({
     type: String,
     default: "",
   },
+  amount: {
+    type: Number,
+    required: true,
+  },
   relation_with_client: {
     type: String,
     default: "",
   },
   otp: {
+    type: Number,
+    required: true
+  },
+  age: {
     type: Number,
     required: true
   },

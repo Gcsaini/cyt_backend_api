@@ -14,6 +14,14 @@ const workshopBookingSchema = new Schema(
             type: Boolean,
             default: false,
         },
+        is_payment_success: {
+            type: Boolean,
+            default: false,
+        },
+         amount: {
+            type: Number,
+            required: true,
+        },
         program_name: {
             type: String,
             default: "",

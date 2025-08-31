@@ -4,8 +4,13 @@ import mongoose from "mongoose";
 import Workshop from "../models/Workshop.js";
 import Users from "../models/Users.js";
 import WorkshopBooking from "../models/WorkshopBooking.js";
-import { generate6DigitOTP } from "../helper/generate.js";
+import { generate6DigitOTP, generateQrCode } from "../helper/generate.js";
 import { sendMail } from "../helper/mailer.js";
+import UPIInfo from "../models/UPIInfo.js";
+import { PAYMENT_STATUS } from "../helper/status.js";
+import Transaction from "../models/Transaction.js";
+import PaymentStatus from "../models/PaymentStatus.js";
+import { populate } from "dotenv";
 
 export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
   const workshopSchema = Joi.object({
@@ -612,15 +617,6 @@ export const BookWorkshop = expressAsyncHandler(async (req, res, next) => {
       "any.required": "is_logged_in flag is required",
     }),
 
-    amount: Joi.number()
-      .positive()
-      .required()
-      .messages({
-        "number.base": "Amount must be a number",
-        "number.positive": "Amount must be greater than 0",
-        "any.required": "Amount is required",
-      }),
-
     user_id: Joi.string()
       .when("is_logged_in", {
         is: true,
@@ -636,10 +632,13 @@ export const BookWorkshop = expressAsyncHandler(async (req, res, next) => {
       "any.required": "Workshop ID is required",
       "string.base": "Workshop ID must be a string",
     }),
-  });
 
+    therapist: Joi.string().required().messages({
+      "any.required": "Therapist ID is required",
+      "string.base": "Therapist ID must be a string",
+    }),
 
-
+  }).unknown(true);
 
   const { error } = bookingSchema.validate(req.body);
 
@@ -721,7 +720,7 @@ export const BookWorkshop = expressAsyncHandler(async (req, res, next) => {
 
     const html = `<p>Hello ${user.name},</p><p>Thank you for registering.</p><p>Use the below otp to verify account</p><p>Otp:${generatedOtp}</p>`;
 
-    await sendMail(email, subject, text, html);
+
     const isBookingExists = await WorkshopBooking.findOne({
       workshop: isExist._id,
       user: user._id,
@@ -736,9 +735,10 @@ export const BookWorkshop = expressAsyncHandler(async (req, res, next) => {
       is_student,
       program_name,
       institution_name,
+      amount: isExist.price
     });
     if (booked) {
-
+      await sendMail(email, subject, text, html);
       res.status(201).json({
         status: true,
         message: "Booking saved successfully.And an otp sent to your email.",
@@ -748,9 +748,180 @@ export const BookWorkshop = expressAsyncHandler(async (req, res, next) => {
       });
     } else {
       res.status(400);
-      return next(new Error("Failed to checkout."));
+      return next(new Error("Failed to book workshop."));
     }
 
+  } catch (err) {
+    return next(new Error(err.message));
+  }
+});
+
+export const generatePaymentQR = expressAsyncHandler(async (req, res, next) => {
+  const bookingId = req.params.id;
+  if (!bookingId) {
+    res.status(400);
+    return next(new Error("Please pass booking ID"));
+  }
+  try {
+    const getUpi = await UPIInfo.findOne();
+
+    if (!getUpi) {
+      res.status(400);
+      return next(new Error("Id Not found!"));
+    }
+    const isBookingDetail = await WorkshopBooking.findById(bookingId);
+    if (!isBookingDetail) {
+      res.status(400);
+      return next(new Error("booking not found with this id"));
+
+    }
+    if (isBookingDetail.is_payment_success) {
+      res.status(400);
+      return next(new Error("Booking amount already received for this id new"));
+      // return res.status(200).json({
+      //   message: "Booking amount already received for this id",
+      //   status: true,
+      //   data:null
+      // });
+    }
+    const data = {
+      upiID: getUpi.upi_id,
+      name: getUpi.name,
+      amount: isBookingDetail.amount,
+      note: "Booking workshop",
+    };
+
+    const qrImage = await generateQrCode(data);
+    const retrunData = {
+      qrImage,
+      upi_details: getUpi,
+      booking_id: isBookingDetail._id,
+    };
+    res.status(201).json({
+      status: true,
+      message: "QR has been generated.",
+      data: retrunData,
+    });
+  } catch (err) {
+    return next(new Error(err.message));
+  }
+});
+
+export const savePaymentDetails = expressAsyncHandler(async (req, res, next) => {
+  const validateSchema = Joi.object({
+    transactionId: Joi.string().required().messages({
+      "string.base": "Transaction ID must be a string",
+      "string.empty": "Transaction ID is required",
+      "any.required": "Transaction ID is required",
+    }),
+
+    booking_id: Joi.string().required().messages({
+      "string.base": "Booking ID must be a string",
+      "string.empty": "Booking ID is required",
+      "any.required": "Booking ID is required",
+    }),
+  }).unknown(true);
+  const { error } = validateSchema.validate(req.body);
+
+  if (error) {
+    res.status(400);
+    return next(new Error(error));
+  }
+
+  try {
+
+    const { transactionId, booking_id } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(booking_id)) {
+      res.status(400);
+      return next(new Error("Booking invalid."));
+    }
+
+    const isBookingDetail = await WorkshopBooking.findById(booking_id);
+    if (!isBookingDetail) {
+      res.status(400);
+      return next(new Error("booking not found with this id"));
+    }
+    if (isBookingDetail.is_payment_success) {
+      return res.status(400).json({
+        message: "Booking amount already received for this id",
+        status: false,
+      });
+    }
+
+    const data = {
+      booking: isBookingDetail._id,
+      bookingModel: "WorkshopBooking",
+      user: isBookingDetail.user,
+      amount: isBookingDetail.amount,
+      payment_method: "UPI",
+      status: PAYMENT_STATUS.UNDERPROCESS,
+      is_payment_success: true,
+      transaction_id: transactionId,
+    };
+
+    const savedTransaction = await Transaction.create(data);
+    if (!savedTransaction) {
+      res.status(400);
+      return next(new Error("Failed to save transaction."));
+    }
+    isBookingDetail.transaction = savedTransaction._id;
+    isBookingDetail.is_payment_success = true;
+    await isBookingDetail.save();
+
+    res.status(201).json({
+      status: true,
+      message: "Payment Success.",
+      data: isBookingDetail,
+    });
+  } catch (err) {
+    return next(new Error(err.message));
+  }
+});
+
+export const GetMyBookings = expressAsyncHandler(async (req, res, next) => {
+
+  try {
+
+    await PaymentStatus.findOne();
+    const userId = req.user.id;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      res.status(400);
+      return next(new Error("Booking invalid."));
+    }
+
+    let result = await WorkshopBooking.find({ user: userId })
+      .populate({
+        path: "user",
+        select: "name email mobile profile age gender",
+      })
+      .populate({
+        path: "workshop",
+        populate: {
+          path: "post_by",
+          select: "_id user",
+          populate:{
+            path:"user",
+            select:"_id name email profile"
+          }
+        },
+      })
+      .populate({
+        path: "transaction",
+        select: "amount transaction_id",
+        populate: {
+          path: "status",
+          select: "_id name"
+        }
+      })
+      .exec();
+
+    res.status(201).json({
+      status: true,
+      message: "Fetched Successfully.",
+      data: result || [],
+    });
   } catch (err) {
     return next(new Error(err.message));
   }

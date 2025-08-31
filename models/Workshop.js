@@ -32,4 +32,4 @@ const WorkshopSchema = new Schema(
   { timestamps: true }
 );
 
-export default model("Workshops", WorkshopSchema);
+export default model("Workshop", WorkshopSchema);

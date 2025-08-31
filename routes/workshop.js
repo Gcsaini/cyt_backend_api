@@ -4,13 +4,16 @@ import {
   CreateWorkshop,
   DeleteWorkshop,
   DisableWorkshop,
+  generatePaymentQR,
+  GetMyBookings,
   GetWorkshop,
   GetWorkshops,
   GetWorkshopsWeb,
   GetWorkshopWeb,
+  savePaymentDetails,
   UpdateWorkshop,
 } from "../controllers/WorkshopController.js";
-import { isTherapist } from "../middlewares/authMiddleware.js";
+import { isAuth, isTherapist } from "../middlewares/authMiddleware.js";
 import { multiUpload } from "../services/fileUpload.js";
 
 const router = Router();
@@ -47,6 +50,14 @@ router.get("/disable-workshop", isTherapist, DisableWorkshop);
 
 router.get("/delete-workshop", isTherapist, DeleteWorkshop);
 
-router.get("/book-workshop", BookWorkshop);
+router.post("/book-workshop", BookWorkshop);
+
+router.get("/get-booking-workshop", BookWorkshop);
+
+router.get("/get-payment-qr/:id", generatePaymentQR);
+
+router.post("/save-workshop-payment", savePaymentDetails);
+
+router.get("/get-my-workshop-bookings",isAuth, GetMyBookings);
 
 export default router;

@@ -113,9 +113,15 @@ export const getFavriouteTherapists = expressAsyncHandler(
     }
     const skip = (page - 1) * limit;
     try {
-      const favorite = await FavoriteTherapist.findOne({ userId }).populate(
-        "therapists"
-      );
+      const favorite = await FavoriteTherapist.findOne({ userId }).populate({
+        path: "therapists",
+        select:
+          "_id profile_type services year_of_exp language_spoken qualification serve_type services session_formats, experties fees availabilities",
+        populate: {
+          path: "user",
+          select: "_id name email profile"
+        }
+      });
 
       if (!favorite) {
         res.status(201).json({
@@ -126,50 +132,7 @@ export const getFavriouteTherapists = expressAsyncHandler(
       }
 
       // Filter therapists based on the query
-      const filteredTherapists = favorite.therapists.filter((therapist) => {
-        for (let key in query) {
-          if (key === "$or") {
-            if (
-              !query.$or.some((condition) => {
-                for (let field in condition) {
-                  if (condition[field].$regex.test(therapist[field])) {
-                    return true;
-                  }
-                }
-                return false;
-              })
-            ) {
-              return false;
-            }
-          } else {
-            if (!query[key].$regex.test(therapist[key])) {
-              return false;
-            }
-          }
-        }
-        return true;
-      });
-
-      const paginatedTherapists = filteredTherapists.slice(
-        skip,
-        skip + parseInt(limit)
-      );
-
-      if (favorite) {
-        res.status(201).json({
-          message: "Success",
-          data: paginatedTherapists,
-          totalPages: Math.ceil(filteredTherapists.length / limit),
-          currentPage: parseInt(page),
-          status: true,
-        });
-      } else {
-        res.status(201).json({
-          message: "Removed successfully",
-          data: {},
-          status: true,
-        });
-      }
+      userId
     } catch (error) {
       res.status(400);
       throw new Error(error);

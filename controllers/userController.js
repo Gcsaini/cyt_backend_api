@@ -78,6 +78,7 @@ export const getUser = expressAsyncHandler(async (req, res, next) => {
       res.status(201).json({
         message: "Fetched successfully",
         data: {
+          _id: user._id,
           name: user.name,
           phone: user.phone,
           email: user.email,
@@ -92,6 +93,7 @@ export const getUser = expressAsyncHandler(async (req, res, next) => {
       res.status(201).json({
         message: "Fetched successfully",
         data: {
+          _id: user._id,
           name: user.name,
           phone: user.phone,
           email: user.email,

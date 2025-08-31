@@ -457,6 +457,7 @@ export const checkProfileSet = expressAsyncHandler(async (req, res, next) => {
     throw new Error(error);
   }
 });
+
 export const getTherapist = expressAsyncHandler(async (req, res, next) => {
   const user = req.user;
 

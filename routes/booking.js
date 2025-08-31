@@ -1,7 +1,6 @@
 import { Router } from "express";
 import {
   bookTherapist,
-  bookTherapistAnomalously,
   generatePaymentQR,
   getBookings,
   saveTransactionId,
@@ -9,9 +8,7 @@ import {
 import { isAuth } from "../middlewares/authMiddleware.js";
 const router = Router();
 
-router.post("/book-therapist", isAuth, bookTherapist);
-
-router.post("/book-therapist-anomalously", bookTherapistAnomalously);
+router.post("/book-therapist", bookTherapist);
 
 router.get("/get-payment/:id", generatePaymentQR);
 
