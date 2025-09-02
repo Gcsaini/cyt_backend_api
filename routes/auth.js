@@ -10,7 +10,6 @@ import {
   sendAproveMail,
   adminLogin,
   sendOtpToMail,
-  changePassword,
   verifyOtpAndResetPassword,
 } from "../controllers/AuthController.js";
 import { uploadFile } from "../services/fileUpload.js";
@@ -53,8 +52,5 @@ router.post("/verify-otp", verifyOtp);
 
 router.post("/verify-otp-and-reset-password", verifyOtpAndResetPassword);
 
-router.post("/change-passowrd", isTherapist, changePassword);
-
-router.post("/change-client-passowrd", isAuth, changePassword);
 
 export default router;

@@ -10,7 +10,7 @@ import UPIInfo from "../models/UPIInfo.js";
 import { PAYMENT_STATUS } from "../helper/status.js";
 import Transaction from "../models/Transaction.js";
 import PaymentStatus from "../models/PaymentStatus.js";
-import { populate } from "dotenv";
+import Therapists from "../models/Therapists.js";
 
 export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
   const workshopSchema = Joi.object({
@@ -129,7 +129,7 @@ export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
       content_pdf = pdffile.filename;
     }
 
-    const therapist = await Users.findById(req.user._id);
+    const therapist = await Therapists.findOne({user:req.user._id});
 
     let post_by = therapist._id;
     const savedWorkshop = await Workshop.create({
@@ -385,8 +385,9 @@ export const GetWorkshops = expressAsyncHandler(async (req, res, next) => {
     pageSize = parseInt(pageSize) || 6;
     const skip = (page - 1) * pageSize;
     const limit = pageSize;
+    const therapist =await Therapists.findOne({user:req.user._id})
     const workshops = await Workshop.find({
-      post_by: req.user._id,
+      post_by: therapist._id,
     })
       .sort({ _id: -1 })
       .skip(skip)

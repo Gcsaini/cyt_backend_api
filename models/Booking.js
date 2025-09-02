@@ -41,7 +41,7 @@ const bookingSchema = new Schema({
     default: "",
   },
   amount: {
-    type: Number,
+    type: Schema.Types.Decimal128,
     required: true,
   },
   relation_with_client: {

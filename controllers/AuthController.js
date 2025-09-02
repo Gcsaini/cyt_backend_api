@@ -81,6 +81,7 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
       if (user) {
         await sendMail(email, subject, text, html);
         await Therapists.create({
+          _id:user._id,
           user:user._id,
           profile_type: type,
           mode,
@@ -594,8 +595,6 @@ export const login = expressAsyncHandler(async (req, res, next) => {
   }
 });
 
-
-
 export const adminLogin = expressAsyncHandler(async (req, res) => {
   const { password } = req.body;
   let email = req.body.email.toLowerCase();
@@ -629,71 +628,3 @@ export const adminLogin = expressAsyncHandler(async (req, res) => {
   }
 });
 
-export const changePassword = expressAsyncHandler(async (req, res, next) => {
-  const complexityOptions = {
-    min: 6,
-    max: 250,
-    lowerCase: 1,
-    upperCase: 1,
-    numeric: 1,
-    symbol: 1,
-    requirementCount: 2,
-  };
-  const validateSchema = Joi.object({
-    password: Joi.string().required().messages({
-      "string.empty": "Password cannot be empty",
-    }),
-    npassword: passwordComplexity(complexityOptions).required().messages({
-      "password.minOfUppercase":
-        "{#label} should contain at least {#min} uppercase character",
-      "password.minOfSpecialCharacters":
-        "{#label} should contain at least {#min} special character",
-      "password.minOfLowercase":
-        "{#label} should contain at least {#min} lowercase character",
-      "password.minOfNumeric":
-        "{#label} should contain at least {#min} numeric character",
-      "password.noWhiteSpaces": "{#label} should not contain white spaces",
-    }),
-    cpassword: Joi.string().valid(Joi.ref("npassword")).required().messages({
-      "string.empty": "Confirm Password cannot be empty",
-      "any.only": "Confirm Password does not match New Password",
-    }),
-  });
-  const { error } = validateSchema.validate(req.body);
-
-  if (error) {
-    return next(error);
-  }
-
-  let { password, npassword } = req.body;
-  try {
-    const userExists = await Users.findById(req.user._id);
-
-    if (!userExists) {
-      res.status(400);
-      return next(new Error("This user is not exists"));
-    }
-    userExists.comparePassword(password).then(async (isMatched) => {
-      if (isMatched) {
-        const salt = await bcrypt.genSalt(10);
-        password = await bcrypt.hash(npassword, salt);
-        await Users.findByIdAndUpdate(
-          userExists._id,
-          { password },
-          { new: true }
-        );
-        res.status(200).json({
-          message: "Password has been changes successfully",
-          status: true,
-          data: {},
-        });
-      } else {
-        res.status(400);
-        return next(new Error("Invalid Current password"));
-      }
-    });
-  } catch (error) {
-    res.status(400);
-    return next(new Error(error));
-  }
-});
