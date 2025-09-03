@@ -533,7 +533,7 @@ export const GetWorkshopsWeb = expressAsyncHandler(async (req, res, next) => {
     }
 
     const currentDateISO = new Date().toISOString().slice(0, 10);
-    matchConditions.event_date = { $gt: currentDateISO };
+    matchConditions.event_date = { $gte: currentDateISO };
 
     const data = await Workshop.find(matchConditions);
 
