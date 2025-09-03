@@ -129,7 +129,7 @@ export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
       content_pdf = pdffile.filename;
     }
 
-    const therapist = await Therapists.findOne({user:req.user._id});
+    const therapist = await Therapists.findOne({ user: req.user._id });
 
     let post_by = therapist._id;
     const savedWorkshop = await Workshop.create({
@@ -385,7 +385,7 @@ export const GetWorkshops = expressAsyncHandler(async (req, res, next) => {
     pageSize = parseInt(pageSize) || 6;
     const skip = (page - 1) * pageSize;
     const limit = pageSize;
-    const therapist =await Therapists.findOne({user:req.user._id})
+    const therapist = await Therapists.findOne({ user: req.user._id })
     const workshops = await Workshop.find({
       post_by: therapist._id,
     })
@@ -628,7 +628,11 @@ export const BookWorkshop = expressAsyncHandler(async (req, res, next) => {
         "any.required": "user_id is required for logged-in users",
         "string.base": "user_id must be a string",
       }),
-
+    amount: Joi.number().min(0).required().messages({
+      "number.base": "Amount must be a number",
+      "number.min": "Amount must be greater than or equal to 0",
+      "any.required": "Amount is required",
+    }),
     workshopId: Joi.string().required().messages({
       "any.required": "Workshop ID is required",
       "string.base": "Workshop ID must be a string",
@@ -658,6 +662,7 @@ export const BookWorkshop = expressAsyncHandler(async (req, res, next) => {
       is_logged_in,
       user_id,
       workshopId,
+      amount
     } = req.body;
 
     let email = req.body.email;
@@ -736,7 +741,7 @@ export const BookWorkshop = expressAsyncHandler(async (req, res, next) => {
       is_student,
       program_name,
       institution_name,
-      amount: isExist.price
+      amount
     });
     if (booked) {
       await sendMail(email, subject, text, html);
@@ -902,9 +907,9 @@ export const GetMyBookings = expressAsyncHandler(async (req, res, next) => {
         populate: {
           path: "post_by",
           select: "_id user",
-          populate:{
-            path:"user",
-            select:"_id name email profile"
+          populate: {
+            path: "user",
+            select: "_id name email profile"
           }
         },
       })
