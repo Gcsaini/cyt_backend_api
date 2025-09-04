@@ -350,18 +350,18 @@ export const saveTransactionId = expressAsyncHandler(async (req, res, next) => {
 
 export const getBookings = expressAsyncHandler(async (req, res, next) => {
   try {
-  
-    let result = await Booking.find({ client: req.user._id })
+    let fineKey = req.user.role===1?"therapist":"client";
+    let result = await Booking.find({ [fineKey]: req.user._id }).select("-otp")
       .populate({
         path: "client",
-        select: "name email mobile profile age gender",
+        select: "name email phone profile age gender",
       })
       .populate({
         path: "therapist",
         select: "_id user",   // include user field inside therapist
         populate: {
           path: "user",       // nested populate (inside therapist)
-          select: "name email mobile profile", // fields from User model
+          select: "name email profile", // fields from User model
         },
       })
       .populate({
@@ -390,3 +390,5 @@ export const getBookings = expressAsyncHandler(async (req, res, next) => {
     return next(new Error(err.message));
   }
 });
+
+

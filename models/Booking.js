@@ -71,9 +71,9 @@ const bookingSchema = new Schema({
     type: Date,
     default: null,
   },
-  is_session_completed: {
-    type: Boolean,
-    default: false,
+  status: {
+    type: String,
+    default: "New",
   },
 });
 

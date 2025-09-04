@@ -14,6 +14,7 @@ const workshopBookingSchema = new Schema(
             type: Boolean,
             default: false,
         },
+        
         is_payment_success: {
             type: Boolean,
             default: false,

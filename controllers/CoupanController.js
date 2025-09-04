@@ -360,6 +360,9 @@ export const ApplyCoupon = expressAsyncHandler(async (req, res, next) => {
             });
         }
 
+        coupon.max_usage = coupon.max_usage+1;
+       await coupon.save();
+
         return res.status(200).json({
             status: true,
             message: "Coupon applied successfully",
