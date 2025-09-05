@@ -1,4 +1,4 @@
-import Jwt, { decode } from "jsonwebtoken";
+import Jwt from "jsonwebtoken";
 import Users from "../models/Users.js";
 import expressAsyncHandler from "express-async-handler";
 
@@ -9,9 +9,9 @@ export const isAuth = expressAsyncHandler(async (req, res, next) => {
     req.headers.authorization.startsWith("Bearer")
   ) {
     try {
+      
       token = req.headers.authorization.split(" ")[1];
       const decoded = Jwt.verify(token, process.env.JWT_SECRET);
-
       const user = await Users.findById(decoded.userId).select(
         "_id name email phone profile bio role"
       );

@@ -12,21 +12,23 @@ export const insertFavriouteTherapist = expressAsyncHandler(
         res.status(400);
         return next(new Error("Invalid ID provided"));
       }
-      let favorite = await FavoriteTherapist.findOne({ userId });
-      if (!favorite) {
-        favorite = new FavoriteTherapist({
-          userId,
-          therapists: [therapistId],
+      let favorite = await FavoriteTherapist.findOne({ user: userId, therapist: therapistId });
+      if (favorite) {
+        res.status(201).json({
+          message: "Saved successfully.",
+          data: favorite,
+          status: true,
         });
-      } else {
-        if (!favorite.therapists.includes(therapistId)) {
-          favorite.therapists.push(therapistId);
-        }
       }
-      await favorite.save();
+      let result = await FavoriteTherapist.create({
+        user: userId,
+        therapist: therapistId
+      })
+
+
       res.status(201).json({
         message: "Saved successfully.",
-        data: {},
+        data: result,
         status: true,
       });
     } catch (error) {
@@ -46,21 +48,20 @@ export const removeFavriouteTherapist = expressAsyncHandler(
         res.status(400);
         return next(new Error("Invalid ID provided"));
       }
-      let favorite = await FavoriteTherapist.findOne({ userId });
-      if (favorite) {
-        favorite.therapists = favorite.therapists.filter(
-          (id) => id.toString() !== therapistId
-        );
-        await favorite.save();
-        res.status(201).json({
-          message: "Removed successfully",
-          data: {},
-          status: true,
-        });
-      } else {
+      console.log("userss",userId,  therapistId);
+      let favorite = await FavoriteTherapist.findOne({ user: userId, therapist: therapistId });
+      console.log("favvv",favorite);
+      if (!favorite) {
         res.status(400);
         return next(new Error("Favorite Therapist not found."));
+
       }
+      await favorite.deleteOne()
+      res.status(201).json({
+        message: "Removed successfully",
+        data: {},
+        status: true,
+      });
     } catch (error) {
       res.status(400);
       throw new Error("Failed to remove favorite therapist.");
@@ -113,8 +114,8 @@ export const getFavriouteTherapists = expressAsyncHandler(
     }
     const skip = (page - 1) * limit;
     try {
-      const favorite = await FavoriteTherapist.findOne({ userId }).populate({
-        path: "therapists",
+      const favorite = await FavoriteTherapist.find({ user:userId }).populate({
+        path: "therapist",
         select:
           "_id profile_type services year_of_exp language_spoken qualification serve_type services session_formats, experties fees availabilities",
         populate: {
@@ -124,10 +125,10 @@ export const getFavriouteTherapists = expressAsyncHandler(
       });
 
       res.status(201).json({
-          message: "Success",
-          data: favorite || {},
-          status: true,
-        });
+        message: "Success",
+        data: favorite || {},
+        status: true,
+      });
     } catch (error) {
       res.status(400);
       throw new Error(error);

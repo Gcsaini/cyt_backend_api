@@ -5,7 +5,6 @@ import mongoose from "mongoose";
 import Therapists from "../models/Therapists.js";
 import { generate6DigitOTP, generateQrCode } from "../helper/generate.js";
 import UPIInfo from "../models/UPIInfo.js";
-import UserInfo from "../models/UserInfo.js";
 import Users from "../models/Users.js";
 import { sendMail } from "../helper/mailer.js";
 import Transaction from "../models/Transaction.js";
