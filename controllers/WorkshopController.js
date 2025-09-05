@@ -906,7 +906,7 @@ export const GetMyBookings = expressAsyncHandler(async (req, res, next) => {
         path: "workshop",
         populate: {
           path: "post_by",
-          select: "_id user",
+          select: "_id user profile_code",
           populate: {
             path: "user",
             select: "_id name email profile"

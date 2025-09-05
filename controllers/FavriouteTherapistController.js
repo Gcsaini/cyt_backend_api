@@ -123,16 +123,11 @@ export const getFavriouteTherapists = expressAsyncHandler(
         }
       });
 
-      if (!favorite) {
-        res.status(201).json({
+      res.status(201).json({
           message: "Success",
-          data: {},
+          data: favorite || {},
           status: true,
         });
-      }
-
-      // Filter therapists based on the query
-      userId
     } catch (error) {
       res.status(400);
       throw new Error(error);
