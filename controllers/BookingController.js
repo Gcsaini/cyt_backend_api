@@ -8,7 +8,9 @@ import UPIInfo from "../models/UPIInfo.js";
 import Users from "../models/Users.js";
 import { sendMail } from "../helper/mailer.js";
 import Transaction from "../models/Transaction.js";
-import { PAYMENT_STATUS } from "../helper/status.js";
+import { PAYMENT_STATUS, SESSION_STATUS } from "../helper/status.js";
+import generateToken from "../config/generateToken.js";
+import PaymentStatus from "../models/PaymentStatus.js";
 
 export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
   const validateSchema = Joi.object({
@@ -229,6 +231,7 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
         message: "Booking saved successfully.",
         data: {
           id: booked._id,
+
         },
       });
     } else {
@@ -312,7 +315,7 @@ export const saveTransactionId = expressAsyncHandler(async (req, res, next) => {
       res.status(400);
       return next(new Error("Booking invalid."));
     }
-    const isBookingDetail = await Booking.findById(booking_id);
+    const isBookingDetail = await Booking.findById(booking_id).populate("client");
     if (!isBookingDetail) {
       res.status(400);
       return next(new Error("booking not found with this id"));
@@ -321,7 +324,7 @@ export const saveTransactionId = expressAsyncHandler(async (req, res, next) => {
     const data = {
       booking: isBookingDetail._id,
       bookingModel: "Booking",
-      user: isBookingDetail.client,
+      user: isBookingDetail.client._id,
       amount: isBookingDetail.amount,
       payment_method: "UPI",
       status: PAYMENT_STATUS.UNDERPROCESS,
@@ -341,45 +344,144 @@ export const saveTransactionId = expressAsyncHandler(async (req, res, next) => {
       status: true,
       message: "Payment Success.",
       data: isBookingDetail,
+      token: generateToken(isBookingDetail.client._id, isBookingDetail.client.role)
     });
   } catch (err) {
+
     return next(new Error(err.message));
   }
 });
 
 export const getBookings = expressAsyncHandler(async (req, res, next) => {
   try {
-    let fineKey = req.user.role===1?"therapist":"client";
-    let select = req.user.role===1?"-otp":"";
-    let result = await Booking.find({ [fineKey]: req.user._id }).select(select)
+    let findKey = req.user.role === 1 ? "therapist" : "client";
+    let select = req.user.role === 1 ? "-otp" : "";
+    let result = await Booking.find({ [findKey]: req.user._id }).select(select)
       .populate({
         path: "client",
         select: "name email phone profile age gender",
       })
       .populate({
         path: "therapist",
-        select: "_id user profile_code",   // include user field inside therapist
+        select: "_id user profile_code",
         populate: {
-          path: "user",       // nested populate (inside therapist)
-          select: "name email profile", // fields from User model
+          path: "user",
+          select: "name email profile",
         },
       })
       .populate({
-        path:"transaction",
-        select:"amount transaction_id",
-        populate:{
-          path:"status",
-          select:"_id name"
+        path: "transaction",
+        select: "amount transaction_id",
+        populate: {
+          path: "status",
+          select: "_id name"
         }
       })
+      .sort({ _id: -1 })
       .exec();
-    
+
+    let paymentStatus = [];
+    if (req.user.role === 1) {
+      paymentStatus = await PaymentStatus.find();
+
+    }
+
 
     res.status(201).json({
       status: true,
       message: "Fetched successfully.",
       data: result || [],
+      statuslist: paymentStatus
     });
+  } catch (err) {
+    return next(new Error(err.message));
+  }
+});
+
+export const startSession = expressAsyncHandler(async (req, res, next) => {
+  const { bookingId, pin } = req.body;
+  try {
+
+    if (!bookingId || !pin) {
+      res.status(400);
+      throw new Error("Booking id and pin required.");
+    }
+
+    const result = await Booking.findById(bookingId);
+
+    if (!result) {
+      res.status(404);
+      throw new Error("Booking not found.");
+    }
+    if (result.status === SESSION_STATUS.COMPLETED) {
+      res.status(404);
+      throw new Error("Session completed already!");
+    }
+
+    if (result.status === SESSION_STATUS.STARTED) {
+      res.status(404);
+      throw new Error("Session started already!");
+    }
+    
+    if (result.otp != pin) {
+      res.status(400);
+      throw new Error("Invalid Pin.");
+    }
+
+
+    result.session_started_at = new Date();
+    result.status = SESSION_STATUS.STARTED
+    await result.save();
+
+    res.status(200).json({
+      status: true,
+      message: "Session started.",
+      data: result,
+    });
+
+  } catch (err) {
+    return next(new Error(err.message));
+  }
+});
+
+
+export const EndSession = expressAsyncHandler(async (req, res, next) => {
+  const { bookingId } = req.body;
+  try {
+
+    if (!bookingId) {
+      res.status(400);
+      throw new Error("Booking id required.");
+    }
+
+    const result = await Booking.findById(bookingId);
+
+    if (!result) {
+      res.status(404);
+      throw new Error("Booking not found.");
+    }
+
+    if (result.status === SESSION_STATUS.COMPLETED) {
+      res.status(404);
+      throw new Error("Session completed already.");
+    }
+
+
+    if (result.status === SESSION_STATUS.CANCELED) {
+      res.status(404);
+      throw new Error("Session cancelled");
+    }
+
+    result.session_completed_at = new Date();
+    result.status = SESSION_STATUS.COMPLETED;
+    await result.save();
+
+    res.status(200).json({
+      status: true,
+      message: "Session completed.",
+      data: result,
+    });
+
   } catch (err) {
     return next(new Error(err.message));
   }

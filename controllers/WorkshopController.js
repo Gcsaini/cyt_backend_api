@@ -11,6 +11,7 @@ import { PAYMENT_STATUS } from "../helper/status.js";
 import Transaction from "../models/Transaction.js";
 import PaymentStatus from "../models/PaymentStatus.js";
 import Therapists from "../models/Therapists.js";
+import generateToken from "../config/generateToken.js";
 
 export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
   const workshopSchema = Joi.object({
@@ -535,7 +536,7 @@ export const GetWorkshopsWeb = expressAsyncHandler(async (req, res, next) => {
     const currentDateISO = new Date().toISOString().slice(0, 10);
     matchConditions.event_date = { $gte: currentDateISO };
 
-    const data = await Workshop.find(matchConditions);
+    const data = await Workshop.find(matchConditions).sort({ _id: -1 });
 
     res.status(200).json({
       message: "Fetched successfully",
@@ -843,7 +844,7 @@ export const savePaymentDetails = expressAsyncHandler(async (req, res, next) => 
       return next(new Error("Booking invalid."));
     }
 
-    const isBookingDetail = await WorkshopBooking.findById(booking_id);
+    const isBookingDetail = await WorkshopBooking.findById(booking_id).populate("user");
     if (!isBookingDetail) {
       res.status(400);
       return next(new Error("booking not found with this id"));
@@ -879,6 +880,7 @@ export const savePaymentDetails = expressAsyncHandler(async (req, res, next) => 
       status: true,
       message: "Payment Success.",
       data: isBookingDetail,
+      token:generateToken(isBookingDetail.user._id,isBookingDetail.user.role)
     });
   } catch (err) {
     return next(new Error(err.message));
@@ -921,6 +923,7 @@ export const GetMyBookings = expressAsyncHandler(async (req, res, next) => {
           select: "_id name"
         }
       })
+      .sort({ _id: -1 })
       .exec();
 
     res.status(201).json({
