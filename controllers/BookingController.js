@@ -11,6 +11,7 @@ import Transaction from "../models/Transaction.js";
 import { PAYMENT_STATUS, SESSION_STATUS } from "../helper/status.js";
 import generateToken from "../config/generateToken.js";
 import PaymentStatus from "../models/PaymentStatus.js";
+import { adminText, bookingConfirmationMail, clientText, newSessionAdminMail, therapistSessionMail, therapistText } from "../services/mailTemplates.js";
 
 export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
   const validateSchema = Joi.object({
@@ -207,7 +208,7 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
     }
 
     const subject = "Welcome to CYT";
-    const text = `Hello Thank you for registering.Best regards,CYT`;
+    const text = `Hello Thank you for registering.Best regards CYT`;
 
     const html = `<p>Hello ${user.name},</p><p>Thank you for registering.</p><p>Use the below otp to verify account</p><p>Otp:${generatedOtp}</p>`;
     const booked = await Booking.create({
@@ -315,7 +316,14 @@ export const saveTransactionId = expressAsyncHandler(async (req, res, next) => {
       res.status(400);
       return next(new Error("Booking invalid."));
     }
-    const isBookingDetail = await Booking.findById(booking_id).populate("client");
+    const isBookingDetail = await Booking.findById(booking_id).populate("client", "_id name email age").populate({
+      path: "therapist",
+      select: "_id user profile_code",
+      populate: {
+        path: "user",
+        select: "name profile email"
+      }
+    });
     if (!isBookingDetail) {
       res.status(400);
       return next(new Error("booking not found with this id"));
@@ -339,6 +347,51 @@ export const saveTransactionId = expressAsyncHandler(async (req, res, next) => {
     }
     isBookingDetail.transaction = savedTransaction._id;
     await isBookingDetail.save();
+
+    const therapistName = isBookingDetail.therapist.user.name;
+    const therapistId = isBookingDetail.therapist.profile_code;
+    const clientName = isBookingDetail.client.name;
+    const clientAge = isBookingDetail.client.age;
+    const paymentAmount = isBookingDetail.amount;
+
+
+    //Client Mail
+    const subjectClient = `Your Session Has Been Booked with ${isBookingDetail.therapist.user.name}`;
+    const textClient = clientText(isBookingDetail, transactionId);
+    const clientHtml = bookingConfirmationMail({
+      clientName,
+      therapistName,
+      clientAge,
+      paymentStatus: PAYMENT_STATUS.UNDERPROCESS,
+      transactionId: transactionId
+    });
+    await sendMail(isBookingDetail.client.email, subjectClient, textClient, clientHtml);
+
+    //Therapist Mail
+    const subjectTherapist = "Session Assigned – Please Review and Confirm | CYT";
+    const textTherapist = therapistText(isBookingDetail, transactionId);
+    const therapistHtml = therapistSessionMail({
+      therapistName,
+      clientName,
+      clientAge,
+      paymentAmount,
+      transactionId
+    })
+    await sendMail(isBookingDetail.therapist.user.email, subjectTherapist, textTherapist, therapistHtml);
+
+    //Admin Mail
+    const subjectAdmin = `New Session Booking Recorded for ${isBookingDetail.therapist.user.name} to ${isBookingDetail.client.name}`;
+    const textAdmin = adminText(isBookingDetail, transactionId);
+    const htmlAdmin = newSessionAdminMail({
+      therapistName,
+      clientName,
+      clientAge,
+      paymentAmount,
+      transactionId,
+      therapistId
+    });
+    await sendMail("Appointment.cyt@gmail.com", subjectAdmin, textAdmin, htmlAdmin);
+
 
     res.status(201).json({
       status: true,
@@ -422,7 +475,7 @@ export const startSession = expressAsyncHandler(async (req, res, next) => {
       res.status(404);
       throw new Error("Session started already!");
     }
-    
+
     if (result.otp != pin) {
       res.status(400);
       throw new Error("Invalid Pin.");
