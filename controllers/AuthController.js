@@ -57,7 +57,7 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
         res.status(400);
         return next(new Error("Please uplolad you resume."));
       } else {
-        if (req.file.size > 200 * 1024) {
+        if (req.file.size > 500 * 1024) {
           res.status(400);
           return next(new Error("File size should be less than 200KB!"));
         }
