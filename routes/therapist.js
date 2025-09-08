@@ -17,6 +17,7 @@ import {
   checkProfileSet,
   getDashboardData,
   ShowToPage,
+  SetPriority,
 } from "../controllers/TherapistController.js";
 import { upload } from "../services/fileUpload.js";
 const router = Router();
@@ -45,6 +46,8 @@ router.get("/get-availability-details", isTherapist, getAvailabilityDetails);
 router.get("/get-therapists",isAdmin, getTherapists);
 
 router.get("/toggle-to-show-to-page/:therapistId",isAdmin, ShowToPage);
+
+router.post("/set-priority",isAdmin, SetPriority);
 
 router.get("/get-therapists-profile", getFilteredTherapists);
 

@@ -536,3 +536,43 @@ export const ShowToPage = expressAsyncHandler(async (req, res, next) => {
     return next(new Error(error));
   }
 });
+
+
+
+export const SetPriority = expressAsyncHandler(async (req, res, next) => {
+  const {therapistId,value=0} = req.body;
+  if (!therapistId ) {
+    res.status(400);
+    return next(new Error("Please pass user ID"));
+  }
+  try {
+    if (!mongoose.Types.ObjectId.isValid(therapistId)) {
+      res.status(400);
+      return next(new Error("Invalid user ID format"));
+    }
+    const userExists = await Therapists.findById(therapistId);
+
+    if (!userExists) {
+      res.status(400);
+      return next(new Error("This therapist is not exists"));
+    }
+
+    const priority = value;
+    const updatedUser = await Therapists.findByIdAndUpdate(
+      therapistId,
+      { priority },
+      { new: true }
+    );
+
+    res.status(201).json({
+      message: "Priority set successfully",
+      data:updatedUser,
+      status: true,
+    });
+  } catch (error) {
+    res.status(400);
+    return next(new Error(error));
+  }
+});
+
+
