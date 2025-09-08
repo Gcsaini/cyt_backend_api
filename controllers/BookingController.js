@@ -353,17 +353,20 @@ export const saveTransactionId = expressAsyncHandler(async (req, res, next) => {
     const clientName = isBookingDetail.client.name;
     const clientAge = isBookingDetail.client.age;
     const paymentAmount = isBookingDetail.amount;
+    const pin = isBookingDetail.pin;
 
 
     //Client Mail
-    const subjectClient = `Your Session Has Been Booked with ${isBookingDetail.therapist.user.name}`;
+    const subjectClient = `Your Session Has Been Booked with ${isBookingDetail.therapist.user.name} | ${pin}`;
     const textClient = clientText(isBookingDetail, transactionId);
     const clientHtml = bookingConfirmationMail({
       clientName,
       therapistName,
       clientAge,
       paymentStatus: PAYMENT_STATUS.UNDERPROCESS,
-      transactionId: transactionId
+      transactionId: transactionId,
+      pin
+
     });
     await sendMail(isBookingDetail.client.email, subjectClient, textClient, clientHtml);
 

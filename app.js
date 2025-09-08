@@ -28,6 +28,12 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+app.use(cors({
+  origin: ["http://localhost:3000", "https://chooseyourtherapist.in","https://cyt.chooseyourtherapist.in"], // allow all origins
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
 
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");

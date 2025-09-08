@@ -114,3 +114,20 @@ export const getUser = expressAsyncHandler(async (req, res, next) => {
     throw new Error(err.message);
   }
 });
+
+export const getAllUserForAdmin = expressAsyncHandler(async (req, res, next) => {
+  try {
+     const userInfo = await Users.find({role:0}).select("name email phone profile age gender bio is_online dob").sort({ createdAt: -1 });
+
+      res.status(201).json({
+        message: "Fetched successfully",
+        data:userInfo || [],
+        status: true,
+      });
+    
+  } catch (err) {
+    res.status(400);
+    throw new Error(err.message);
+  }
+});
+

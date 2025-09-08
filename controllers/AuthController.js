@@ -7,8 +7,6 @@ import Users from "../models/Users.js";
 import Admin from "../models/Admin.js";
 import Therapists from "../models/Therapists.js";
 import { sendMail } from "../helper/mailer.js";
-import crypto from "crypto";
-import bcrypt from "bcryptjs";
 import { getTimeDifferenceInSeconds } from "../helper/time.js";
 import { generate6DigitOTP, generateProfileCode } from "../helper/generate.js";
 
@@ -120,7 +118,7 @@ export const aproveTherapist = expressAsyncHandler(async (req, res, next) => {
       res.status(400);
       return next(new Error("Invalid user ID format"));
     }
-    const userExists = await Therapists.findById(userId);
+    const userExists = await Users.findById(userId);
 
     if (!userExists) {
       res.status(400);
@@ -136,32 +134,14 @@ export const aproveTherapist = expressAsyncHandler(async (req, res, next) => {
 
     const isMailSent = await sendMail(userExists.email, subject, text, html);
 
-    const is_aproved = 1;
+    const is_verified = 1;
     let is_mail_sent = isMailSent ? 1 : 0;
 
-    const randomNumber = crypto.randomInt(10000000, 100000000); // Generates a random number between 100000 and 999999
-    const profile_code = `CYT${randomNumber}`;
-    const priority = 0;
-
-    const updatedUser = await Therapists.findByIdAndUpdate(
+    const updatedUser = await Users.findByIdAndUpdate(
       userId,
-      { is_aproved, is_mail_sent, profile_code, priority },
+      { is_verified, is_mail_sent },
       { new: true }
     );
-
-    await Users.create({
-      _id: userExists._id,
-      name: userExists.name,
-      email: userExists.email,
-      phone: userExists.phone.toString(),
-      role: 1,
-      is_verified: 1,
-    });
-
-    if (!updatedUser) {
-      res.status(400);
-      return next(new Error("Failed to update user"));
-    }
 
     res.status(201).json({
       message: "Therapist aproved successfully",

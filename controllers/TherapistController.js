@@ -244,7 +244,7 @@ export const getFeeDetails = expressAsyncHandler(async (req, res, next) => {
 
 export const getTherapists = expressAsyncHandler(async (req, res, next) => {
   try {
-    const data = await Therapists.find({});
+    const data = await Therapists.find({}).populate('user',"email phone profile age bio is_verified gender name").sort({ createdAt: -1 });
 
     res.status(201).json({
       message: "Fetched successfully",
@@ -497,5 +497,42 @@ export const getDashboardData = expressAsyncHandler(async (req, res, next) => {
   } catch (error) {
     res.status(400);
     throw new Error("Unknow error");
+  }
+});
+
+export const ShowToPage = expressAsyncHandler(async (req, res, next) => {
+  const userId = req.params.therapistId;
+  if (!userId) {
+    res.status(400);
+    return next(new Error("Please pass user ID"));
+  }
+  try {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      res.status(400);
+      return next(new Error("Invalid user ID format"));
+    }
+    const userExists = await Therapists.findById(userId);
+
+    if (!userExists) {
+      res.status(400);
+      return next(new Error("This therapist is not exists"));
+    }
+
+    const show_to_page = !userExists.show_to_page;
+
+    const updatedUser = await Therapists.findByIdAndUpdate(
+      userId,
+      { show_to_page },
+      { new: true }
+    );
+
+    res.status(201).json({
+      message: "Therapist set to page successfully",
+      data:updatedUser,
+      status: true,
+    });
+  } catch (error) {
+    res.status(400);
+    return next(new Error(error));
   }
 });

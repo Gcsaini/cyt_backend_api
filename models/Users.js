@@ -61,7 +61,7 @@ const UserSchema = new Schema(
     role: {
       type: Number,
       default: 0,
-      enum: [0, 1],
+      enum: [0, 1,2],
     },
     last_visit: {
       type: Date,

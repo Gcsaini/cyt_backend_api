@@ -80,6 +80,7 @@ export const bookingConfirmationMail = ({
     clientAge,
     paymentStatus,
     transactionId,
+    pin
 }) => {
     return `
   <!DOCTYPE html>
@@ -130,6 +131,7 @@ export const bookingConfirmationMail = ({
         <li><strong>Age:</strong> ${clientAge}</li>
         <li><strong>Payment Status:</strong> ${paymentStatus}</li>
         <li><strong>Transaction ID:</strong> ${transactionId}</li>
+        <li><strong>Transaction ID:</strong> ${pin}</li>
       </ul>
 
       <h2>Important Instructions for You:</h2>

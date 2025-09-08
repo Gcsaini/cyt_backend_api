@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { isAuth, isTherapist } from "../middlewares/authMiddleware.js";
+import { isAdmin, isAuth, isTherapist } from "../middlewares/authMiddleware.js";
 import {
   aproveTherapist,
   login,
@@ -38,9 +38,9 @@ router.post(
   therapistRegister
 );
 
-router.get("/aprove-therapist/:userId", aproveTherapist);
+router.get("/aprove-therapist/:userId",isAdmin, aproveTherapist);
 
-router.get("/send-aprove-mail/:userId", sendAproveMail);
+router.get("/send-aprove-mail/:userId", sendAproveMail); 
 
 router.post("/login", login);
 
