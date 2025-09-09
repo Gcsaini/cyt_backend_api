@@ -245,7 +245,6 @@ export const getFeeDetails = expressAsyncHandler(async (req, res, next) => {
 export const getTherapists = expressAsyncHandler(async (req, res, next) => {
   try {
     const data = await Therapists.find({}).populate('user',"email phone profile age bio is_verified gender name").sort({ createdAt: -1 });
-
     res.status(201).json({
       message: "Fetched successfully",
       data: data,

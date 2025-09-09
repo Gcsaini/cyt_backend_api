@@ -435,18 +435,10 @@ export const getBookings = expressAsyncHandler(async (req, res, next) => {
       .sort({ _id: -1 })
       .exec();
 
-    let paymentStatus = [];
-    if (req.user.role === 1) {
-      paymentStatus = await PaymentStatus.find();
-
-    }
-
-
     res.status(201).json({
       status: true,
       message: "Fetched successfully.",
       data: result || [],
-      statuslist: paymentStatus
     });
   } catch (err) {
     return next(new Error(err.message));
@@ -541,5 +533,46 @@ export const EndSession = expressAsyncHandler(async (req, res, next) => {
     return next(new Error(err.message));
   }
 });
+
+
+export const getBookingsForAdmin = expressAsyncHandler(async (req, res, next) => {
+  try {
+    let result = await Booking.find({})
+      .populate({
+        path: "client",
+        select: "name email phone profile age gender",
+      })
+      .populate({
+        path: "therapist",
+        select: "_id user profile_code profile_type",
+        populate: {
+          path: "user",
+          select: "name email profile",
+        },
+      })
+      .populate({
+        path: "transaction",
+        select: "amount transaction_id",
+        populate: {
+          path: "status",
+          select: "_id name"
+        }
+      })
+      .sort({ _id: -1 })
+      .exec();
+
+    let paymentStatus = await PaymentStatus.find();
+   
+    res.status(201).json({
+      status: true,
+      message: "Fetched successfully.",
+      data: result || [],
+      statuslist: paymentStatus
+    });
+  } catch (err) {
+    return next(new Error(err.message));
+  }
+});
+
 
 
