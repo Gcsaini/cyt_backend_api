@@ -353,7 +353,7 @@ export const saveTransactionId = expressAsyncHandler(async (req, res, next) => {
     const clientName = isBookingDetail.client.name;
     const clientAge = isBookingDetail.client.age;
     const paymentAmount = isBookingDetail.amount;
-    const pin = isBookingDetail.pin;
+    const pin = isBookingDetail.otp;
 
 
     //Client Mail
@@ -363,7 +363,6 @@ export const saveTransactionId = expressAsyncHandler(async (req, res, next) => {
       clientName,
       therapistName,
       clientAge,
-      paymentStatus: PAYMENT_STATUS.UNDERPROCESS,
       transactionId: transactionId,
       pin
 

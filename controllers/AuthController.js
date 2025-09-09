@@ -9,6 +9,7 @@ import Therapists from "../models/Therapists.js";
 import { sendMail } from "../helper/mailer.js";
 import { getTimeDifferenceInSeconds } from "../helper/time.js";
 import { generate6DigitOTP, generateProfileCode } from "../helper/generate.js";
+import { loginOtpEmail, otpVerificationEmail, registrationSuccessEmail } from "../services/mailTemplates.js";
 
 export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
   if (!req.file) {
@@ -60,6 +61,9 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
           return next(new Error("File size should be less than 200KB!"));
         }
       }
+
+      const session = await mongoose.startSession();
+      session.startTransaction();
       let url = req.file.filename;
       const otp = generate6DigitOTP();
       const subject = "Welcome to CYT";
@@ -67,41 +71,44 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
 
       const html = `<p>Hello ${name},</p><p>Thank you for registering.</p><p>Use the below otp to verify account</p><p>Otp:${otp}</p>`;
 
-      const user = await Users.create({
-        name: name,
-        email: email,
+      const user = await Users.create([{
+        name,
+        email,
         phone: phone.toString(),
-        otp,
+        otp: Math.floor(1000 + Math.random() * 9000),
         otp_count: 1,
         is_verified: 0,
         role: 1
+      }], { session });
+
+      await Therapists.create([{
+        _id: user[0]._id,
+        user: user[0]._id,
+        profile_type: type,
+        mode,
+        serve_type: serve,
+        resume: url,
+        profile_code: generateProfileCode()
+      }], { session });
+
+      await session.commitTransaction();
+      session.endSession();
+
+      await sendMail(email, subject, text, html);
+
+      res.status(201).json({
+        status: true,
+        message:
+          "Thank you for submitting your resume. Our admin will review your profile soon. You will receive approval via email.",
+        data: {
+          name: user.name,
+          email: user.email,
+          phone: user.phone
+        },
       });
-      if (user) {
-        await sendMail(email, subject, text, html);
-        await Therapists.create({
-          _id:user._id,
-          user:user._id,
-          profile_type: type,
-          mode,
-          serve_type: serve,
-          resume: url,
-          profile_code: generateProfileCode()
-        })
-        res.status(201).json({
-          status: true,
-          message:
-            "Thank you for submitting your resume. Our admin will review your profile soon. You will receive approval via email.",
-          data: {
-            name: user.name,
-            email: user.email,
-            phone: user.phone
-          },
-        });
-      } else {
-        res.status(400);
-        return next(new Error("Failed to create user"));
-      }
     } catch (err) {
+      await session.abortTransaction();
+      session.endSession();
       return next(new Error(err.message));
     }
   }
@@ -125,7 +132,7 @@ export const aproveTherapist = expressAsyncHandler(async (req, res, next) => {
       return next(new Error("This user is not exists"));
     }
 
-     const subject = "Approved profile";
+    const subject = "Approved profile";
     const text = `Thank you for registering with Choose Your Therapist.`;
 
     const html = `<p>Dear ${userExists.name},</p><p>Thank you for registering with Choose Your Therapist.
@@ -177,7 +184,7 @@ export const sendAproveMail = expressAsyncHandler(async (req, res, next) => {
       return next(new Error("This user is not exists"));
     }
 
-     const subject = "Welcome to CYT";
+    const subject = "Welcome to CYT";
     const text = `Hello Thank you for registering.Best regards,CYT`;
 
     const html = `<p>Hello ${userExists.name},</p><p>Thank you for registering.</p><p>Best regards,CYT<br>Use the below credentials to login</p><p>Email - ${userExists.email}</p>`;
@@ -190,7 +197,7 @@ export const sendAproveMail = expressAsyncHandler(async (req, res, next) => {
       { is_mail_sent },
       { new: true }
     );
-   
+
     if (!updatedUser) {
       res.status(400);
       return next(new Error("Failed to update user"));
@@ -233,67 +240,82 @@ export const register = expressAsyncHandler(async (req, res, next) => {
 
   try {
     email = email.toLowerCase();
+    const subject = "CYT Registration – Verify Your Account with OTP";
+    const text = `Hello, thank you for registering. Best regards, CYT`;
+    const otp = generate6DigitOTP();
 
-    const userExists = await Users.findOne({ email });
-    let otp = generate6DigitOTP();
-    const subject = "Welcome to CYT";
-    const text = `Hello Thank you for registering.Best regards,CYT`;
+    const user = await Users.findOne({ email });
 
-    const html = `<p>Hello ${name},</p><p>Thank you for registering.</p><p>Use the below otp to verify account</p><p>Otp:${otp}</p>`;
+    // if user already exists
+    if (user) {
+      const timeDiffInSeconds = getTimeDifferenceInSeconds(user.updatedAt);
 
-    if (userExists) {
-      if (
-        userExists.otp_count >= 5 &&
-        getTimeDifferenceInSeconds(userExists.updatedAt) < 3600
-      ) {
-        res.status(400);
-        throw new Error(
-          `Can't send otp! Maximum limit exceeded.Please try after ${parseInt(
-            getTimeDifferenceInSeconds(userExists.updatedAt) / 3600
-          )} hour.`
-        );
-      } else if (
-        userExists.otp_count <= 5 &&
-        getTimeDifferenceInSeconds(userExists.updatedAt) < 30
-      ) {
-        res.status(400);
-        throw new Error("Unable to send OTP");
-      } else {
-        userExists.otp = otp;
-        userExists.otp_count = userExists.otp_count + 1;
-        await userExists.save();
-        await sendMail(email, subject, text, html);
-        res.status(201).json({
-          message: "Otp has been sent to your mail id",
-          data: {},
-          status: true,
+      // check OTP sending limits
+      if (user.otp_count >= 5 && timeDiffInSeconds < 3600) {
+        return res.status(400).json({
+          status: false,
+          message: `Can't send OTP! Maximum limit exceeded. Please try again after ${parseInt(
+            timeDiffInSeconds / 3600
+          )} hour.`,
         });
       }
-    } else {
-      let otp_count = 1;
+
+      if (user.otp_count < 5 && timeDiffInSeconds < 30) {
+        return res.status(400).json({
+          status: false,
+          message: "Unable to send OTP. Please wait a few seconds before retrying.",
+        });
+      }
+
+      // update OTP & count
+      user.otp = otp;
+      user.otp_count += 1;
+      await user.save();
+
+      const html = registrationSuccessEmail(user.name);
+
       await sendMail(email, subject, text, html);
-      const user = await Users.create({
-        name,
-        email,
-        phone,
-        otp,
-        otp_count,
+
+      return res.status(201).json({
+        status: true,
+        message: "OTP has been sent to your mail ID",
+        data: {},
       });
-      if (user) {
-        res.status(201).json({
-          message: "Otp has been sent to your mail id",
-          data: {},
-          status: true,
-        });
-      } else {
-        res.status(400);
-        throw new Error("Failed to create user");
-      }
     }
+
+    // if user does not exist
+    const newUser = await Users.create({
+      name,
+      email,
+      phone,
+      otp,
+      otp_count: 1,
+    });
+
+    if (!newUser) {
+      return res.status(400).json({
+        status: false,
+        message: "Failed to create user",
+      });
+    }
+    const html = registrationSuccessEmail(newUser.name);
+
+    await sendMail(email, subject, text, html);
+
+    return res.status(201).json({
+      status: true,
+      message: "OTP has been sent to your mail ID",
+      data: {},
+    });
+
   } catch (error) {
-    res.status(400);
-    throw new Error(error.message);
+    console.error(error);
+    return res.status(400).json({
+      status: false,
+      message: error.message || "Something went wrong",
+    });
   }
+
 });
 
 export const sendOtpToMail = expressAsyncHandler(async (req, res) => {
@@ -301,10 +323,10 @@ export const sendOtpToMail = expressAsyncHandler(async (req, res) => {
 
   if (email) {
     try {
-      const otp = Math.floor(Math.random() * 1000000);
+      const otp = generate6DigitOTP();
       const subject = "Welcome to CYT";
-      const text = `Hello Thank you for registering.Best regards,CYT`;
-      const html = `<p>Hello User,Please get the one time password to validate you.<br/><p>OTP - ${otp}</p>`;
+      const text = `Hello Thank you for registering/Booking.Best regards,CYT`;
+      const html = otpVerificationEmail(otp);
       const isMailSent = await sendMail(email, subject, text, html);
       if (isMailSent) {
         res.status(201).json({
@@ -528,16 +550,13 @@ export const login = expressAsyncHandler(async (req, res, next) => {
       return res.status(404).json({ message: "User does not exist", status: false });
     }
 
-    // Check if admin but not verified
     if (user.role === 1 && user.is_verified === 0) {
       return res.status(403).json({ message: "This email id is not activated yet", status: false });
     }
 
-    const now = Date.now();
     const timeDiffSec = getTimeDifferenceInSeconds(user.updatedAt);
     const otp = generate6DigitOTP();
 
-    // OTP limits
     if (user.otp_count >= 5 && timeDiffSec < 3600) {
       const hours = Math.ceil((3600 - timeDiffSec) / 3600);
       return res.status(429).json({
@@ -554,14 +573,9 @@ export const login = expressAsyncHandler(async (req, res, next) => {
     user.otp_count = (user.otp_count || 0) + 1;
     await user.save();
 
-    // Send mail
     const subject = "Welcome Again";
-    const text = `Hello, thank you for coming again. Best regards, CYT`;
-    const html = `
-      <p>Hello ${user.name},</p>
-      <p>Please use the following one-time password to validate your login:</p>
-      <h2>OTP - ${otp}</h2>
-    `;
+    const text = `CYT Login – Your OTP for Secure Access`;
+    const html = loginOtpEmail(user.name, otp);
 
     await sendMail(email, subject, text, html);
 
@@ -571,7 +585,7 @@ export const login = expressAsyncHandler(async (req, res, next) => {
       data: {},
     });
   } catch (err) {
-    return next(err); // let your global error handler handle this
+    return next(err); 
   }
 });
 
