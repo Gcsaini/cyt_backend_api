@@ -264,7 +264,6 @@ export const getFilteredTherapists = expressAsyncHandler(
       pageSize,
       priority,
       profile_type,
-      services,
       year_of_exp,
       language_spoken,
       qualification,
@@ -272,8 +271,15 @@ export const getFilteredTherapists = expressAsyncHandler(
     } = req.query;
     try {
       page = parseInt(page) || 1;
-      pageSize = parseInt(pageSize) || 10;
-      const skip = (page - 1) * pageSize;
+      pageSize = parseInt(pageSize);
+      let skip = 0;
+
+      if (!pageSize) {
+        pageSize = await Therapists.countDocuments();
+      } else {
+        skip = (page - 1) * pageSize;
+      }
+
 
       const matchConditions = {
         show_to_page: 1,
@@ -316,7 +322,7 @@ export const getFilteredTherapists = expressAsyncHandler(
         Therapists.find(matchConditions)
           .skip(skip)
           .limit(pageSize)
-          .select("-resume -__v -is_mail_sent -is_aproved -priority")
+          .select("-resume -__v -is_mail_sent -is_aproved")
           .populate("user", "name phone email bio profile gender age dob"),
         Therapists.countDocuments(matchConditions),
       ]);

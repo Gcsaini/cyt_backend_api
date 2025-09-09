@@ -269,7 +269,7 @@ Support Team
 `;
 
 
-export const therapistVerificationEmail = ({ name = "Therapist", otp = "123456" } = {}) => `
+export const therapistVerificationEmail = (name = "Therapist", otp = "123456") => `
 <!doctype html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>

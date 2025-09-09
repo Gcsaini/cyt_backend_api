@@ -9,7 +9,7 @@ import Therapists from "../models/Therapists.js";
 import { sendMail } from "../helper/mailer.js";
 import { getTimeDifferenceInSeconds } from "../helper/time.js";
 import { generate6DigitOTP, generateProfileCode } from "../helper/generate.js";
-import { loginOtpEmail, otpVerificationEmail, registrationOtpEmail } from "../services/mailTemplates.js";
+import { loginOtpEmail, otpVerificationEmail, registrationOtpEmail, therapistVerificationEmail } from "../services/mailTemplates.js";
 
 export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
   if (!req.file) {
@@ -47,7 +47,7 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
         res.status(400);
         return next(new Error("This user is already registred with us"));
       }
-      if (userExists && userExists.is_verified === 0) {
+      if (userExists.is_verified === 0) {
         res.status(400);
         return next(new Error("Your ID is not aproved yet by Admin"));
       }
@@ -58,7 +58,7 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
       } else {
         if (req.file.size > 500 * 1024) {
           res.status(400);
-          return next(new Error("File size should be less than 200KB!"));
+          return next(new Error("File size should be less than 500KB!"));
         }
       }
 
@@ -66,10 +66,8 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
       session.startTransaction();
       let url = req.file.filename;
       const otp = generate6DigitOTP();
-      const subject = "Welcome to CYT";
+      const subject = "Therapist Registration – OTP Verification & Approval Process";
       const text = `Hello Thank you for registering.Best regards,CYT`;
-
-      const html = `<p>Hello ${name},</p><p>Thank you for registering.</p><p>Use the below otp to verify account</p><p>Otp:${otp}</p>`;
 
       const user = await Users.create([{
         name,
@@ -93,6 +91,9 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
 
       await session.commitTransaction();
       session.endSession();
+
+            
+     const html = therapistVerificationEmail(user.email,otp);
 
       await sendMail(email, subject, text, html);
 
@@ -246,6 +247,13 @@ export const register = expressAsyncHandler(async (req, res, next) => {
 
     const user = await Users.findOne({ email });
 
+    if(user && user.role===1){
+       return res.status(400).json({
+          status: false,
+          message: 'This Email id is already registered as Therapist.',
+        });
+    }
+
     // if user already exists
     if (user) {
       const timeDiffInSeconds = getTimeDifferenceInSeconds(user.updatedAt);
@@ -298,7 +306,7 @@ export const register = expressAsyncHandler(async (req, res, next) => {
         message: "Failed to create user",
       });
     }
-    const html = registrationOtpEmail(newUser.name);
+    const html = registrationOtpEmail(newUser.name,otp);
 
     await sendMail(email, subject, text, html);
 
@@ -443,7 +451,6 @@ export const verifyOtp = expressAsyncHandler(async (req, res, next) => {
         user.otp = "";
         user.otp_count = 0;
         await user.save();
-
         res.status(201).json({
           message: "Otp verified successfully",
           data: user,
