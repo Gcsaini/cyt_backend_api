@@ -33,8 +33,9 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
         }),
     });
     const session = await mongoose.startSession();
-    await session.commitTransaction();
+
     try {
+      session.startTransaction();
       const { error } = registerSchema.validate(req.body);
 
       if (error) {
@@ -64,7 +65,7 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
         }
       }
 
-      
+
       session.startTransaction();
       let url = req.file.filename;
       const otp = generate6DigitOTP();
@@ -91,11 +92,12 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
         profile_code: generateProfileCode()
       }], { session });
 
-      
+
+      await session.commitTransaction();
       session.endSession();
 
-            
-     const html = therapistVerificationEmail(user.email,otp);
+
+      const html = therapistVerificationEmail(user.email, otp);
 
       await sendMail(email, subject, text, html);
 
@@ -249,11 +251,11 @@ export const register = expressAsyncHandler(async (req, res, next) => {
 
     const user = await Users.findOne({ email });
 
-    if(user && user.role===1){
-       return res.status(400).json({
-          status: false,
-          message: 'This Email id is already registered as Therapist.',
-        });
+    if (user && user.role === 1) {
+      return res.status(400).json({
+        status: false,
+        message: 'This Email id is already registered as Therapist.',
+      });
     }
 
     // if user already exists
@@ -282,7 +284,7 @@ export const register = expressAsyncHandler(async (req, res, next) => {
       user.otp_count += 1;
       await user.save();
 
-      const html = registrationOtpEmail(user.name,otp);
+      const html = registrationOtpEmail(user.name, otp);
 
       await sendMail(email, subject, text, html);
 
@@ -308,7 +310,7 @@ export const register = expressAsyncHandler(async (req, res, next) => {
         message: "Failed to create user",
       });
     }
-    const html = registrationOtpEmail(newUser.name,otp);
+    const html = registrationOtpEmail(newUser.name, otp);
 
     await sendMail(email, subject, text, html);
 
@@ -594,7 +596,7 @@ export const login = expressAsyncHandler(async (req, res, next) => {
       data: {},
     });
   } catch (err) {
-    return next(err); 
+    return next(err);
   }
 });
 
