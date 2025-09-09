@@ -29,23 +29,20 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use(cors({
-  origin: ["http://localhost:3000","http://localhost:3001", "https://chooseyourtherapist.in","https://cyt.chooseyourtherapist.in","https://www.chooseyourtherapist.in","https://www.cyt.chooseyourtherapist.in"], // allow all origins
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://chooseyourtherapist.in",
+    "https://cyt.chooseyourtherapist.in",
+    "https://www.chooseyourtherapist.in",
+    "https://www.cyt.chooseyourtherapist.in"
+  ],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
 }));
 
-
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "OPTIONS, GET, POST, PUT, PATCH, DELETE"
-  );
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  next();
-});
-
-
+app.options("*", cors());
 
 app.use("/api", userRoutes);
 app.use("/api", authRouter);

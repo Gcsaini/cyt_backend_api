@@ -9,7 +9,7 @@ import Therapists from "../models/Therapists.js";
 import { sendMail } from "../helper/mailer.js";
 import { getTimeDifferenceInSeconds } from "../helper/time.js";
 import { generate6DigitOTP, generateProfileCode } from "../helper/generate.js";
-import { loginOtpEmail, otpVerificationEmail, registrationOtpEmail, registrationSuccessEmail } from "../services/mailTemplates.js";
+import { loginOtpEmail, otpVerificationEmail, registrationOtpEmail } from "../services/mailTemplates.js";
 
 export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
   if (!req.file) {
@@ -298,7 +298,7 @@ export const register = expressAsyncHandler(async (req, res, next) => {
         message: "Failed to create user",
       });
     }
-    const html = registrationSuccessEmail(newUser.name);
+    const html = registrationOtpEmail(newUser.name);
 
     await sendMail(email, subject, text, html);
 
