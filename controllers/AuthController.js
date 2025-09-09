@@ -33,6 +33,7 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
         }),
     });
     const session = await mongoose.startSession();
+    await session.commitTransaction();
     try {
       const { error } = registerSchema.validate(req.body);
 
@@ -90,7 +91,7 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
         profile_code: generateProfileCode()
       }], { session });
 
-      await session.commitTransaction();
+      
       session.endSession();
 
             
