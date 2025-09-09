@@ -465,102 +465,6 @@ export const loginOtpEmail = (name = "User", otp = "123456") => `
 </html>
 `;
 
-
-export const registrationSuccessEmail = (name = "User") => `
-<!doctype html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width">
-  <meta http-equiv="x-ua-compatible" content="ie=edge">
-  <title>CYT Registration Success</title>
-  <style>
-    @media (prefers-color-scheme: dark) {
-      body, table, .bg-body { background-color:#0b0f14 !important; color:#e6eaef !important; }
-      .card { background-color:#111827 !important; border-color:#1f2937 !important; }
-      .muted { color:#9aa4b2 !important; }
-    }
-    @media only screen and (max-width: 600px) {
-      .container { width:100% !important; padding:0 16px !important; }
-      .card { padding:20px !important; }
-      h1 { font-size:22px !important; }
-    }
-  </style>
-</head>
-<body style="margin:0; padding:0; background:#f4f6f8;" class="bg-body">
-  <!-- Preheader -->
-  <div style="display:none; overflow:hidden; line-height:1px; opacity:0; max-height:0; max-width:0;">
-    Welcome to CYT! Your registration is successful. Our team will review your account.
-  </div>
-
-  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f4f6f8; padding:24px 0;">
-    <tr>
-      <td align="center">
-        <table role="presentation" cellpadding="0" cellspacing="0" width="600" class="container" style="width:600px; max-width:600px;">
-          <!-- Header -->
-          <tr>
-            <td align="left" style="padding:0 24px 16px 24px; font-family:Arial, Helvetica, sans-serif;">
-              <div style="font-size:14px; color:#64748b;">Choose Your Therapist (CYT)</div>
-              <div style="font-size:24px; font-weight:700; color:#0f172a;">Registration Successful</div>
-            </td>
-          </tr>
-
-          <!-- Card -->
-          <tr>
-            <td style="padding:0 24px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card" style="background:#ffffff; border:1px solid #e5e7eb; border-radius:12px; padding:28px;">
-                <tr>
-                  <td style="font-family:Arial, Helvetica, sans-serif; color:#0f172a;">
-                    <h1 style="margin:0 0 12px 0; font-size:20px; line-height:1.3;">Dear ${name},</h1>
-
-                    <p style="margin:0 0 16px 0; font-size:15px; line-height:1.6;">
-                      Welcome to <strong>Choose Your Therapist (CYT)</strong>.
-                    </p>
-
-                    <p style="margin:0 0 16px 0; font-size:15px; line-height:1.6;">
-                      Your registration has been successfully completed.
-                    </p>
-
-                    <ul style="margin:0 0 16px 24px; padding:0; font-size:14px; line-height:1.6; color:#0f172a;">
-                      <li style="margin:0 0 6px 0;">✅ You can now explore our platform.</li>
-                      <li style="margin:0;">⏳ Our team will review your account, and once verified, you’ll receive a confirmation email with further instructions.</li>
-                    </ul>
-
-                    <p style="margin:0 0 18px 0; font-size:15px; line-height:1.6;">
-                      We’re excited to have you onboard!
-                    </p>
-
-                    <p style="margin:0 0 6px 0; font-size:15px; line-height:1.6;">Warm regards,</p>
-                    <p style="margin:0; font-size:15px; line-height:1.6;">
-                      <strong>Team CYT</strong>
-                    </p>
-
-                    <hr style="border:none; border-top:1px solid #e5e7eb; margin:20px 0;">
-
-                    <p class="muted" style="margin:0; font-size:12px; color:#94a3b8; line-height:1.5;">
-                      If this registration wasn’t initiated by you, please contact our support team immediately.
-                    </p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="padding:16px 24px; font-family:Arial, Helvetica, sans-serif; font-size:12px; color:#94a3b8;" align="left">
-              © ${new Date().getFullYear()} Choose Your Therapist LLP. All rights reserved.
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-`;
-
-
 export const otpVerificationEmail = (otp = "123456") => `
 <!doctype html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
@@ -647,4 +551,104 @@ export const otpVerificationEmail = (otp = "123456") => `
 </body>
 </html>
 `;
+
+export const registrationOtpEmail = ( name = "User", otp = "123456" ) => `
+<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <title>CYT Registration OTP</title>
+  <style>
+    @media (prefers-color-scheme: dark) {
+      body, table, .bg-body { background-color:#0b0f14 !important; color:#e6eaef !important; }
+      .card { background-color:#111827 !important; border-color:#1f2937 !important; }
+      .muted { color:#9aa4b2 !important; }
+    }
+    @media only screen and (max-width: 600px) {
+      .container { width:100% !important; padding:0 16px !important; }
+      .card { padding:20px !important; }
+      h1 { font-size:22px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0; padding:0; background:#f4f6f8;" class="bg-body">
+  <!-- Preheader -->
+  <div style="display:none; overflow:hidden; line-height:1px; opacity:0; max-height:0; max-width:0;">
+    Use the OTP below to complete your CYT registration. Valid for 10 minutes.
+  </div>
+
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f4f6f8; padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="600" class="container" style="width:600px; max-width:600px;">
+          <!-- Header -->
+          <tr>
+            <td align="left" style="padding:0 24px 16px 24px; font-family:Arial, Helvetica, sans-serif;">
+              <div style="font-size:14px; color:#64748b;">Choose Your Therapist (CYT)</div>
+              <div style="font-size:24px; font-weight:700; color:#0f172a;">Registration OTP</div>
+            </td>
+          </tr>
+
+          <!-- Card -->
+          <tr>
+            <td style="padding:0 24px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card" style="background:#ffffff; border:1px solid #e5e7eb; border-radius:12px; padding:28px;">
+                <tr>
+                  <td style="font-family:Arial, Helvetica, sans-serif; color:#0f172a;">
+                    <h1 style="margin:0 0 12px 0; font-size:20px; line-height:1.3;">Dear ${name},</h1>
+
+                    <p style="margin:0 0 16px 0; font-size:15px; line-height:1.6;">
+                      Welcome to <strong>Choose Your Therapist (CYT)</strong>!
+                    </p>
+
+                    <p style="margin:0 0 12px 0; font-size:15px; line-height:1.6;">
+                      To complete your registration, please use the One-Time Password (OTP) below:
+                    </p>
+
+                    <!-- OTP Box -->
+                    <div style="margin:8px 0 16px 0; display:inline-block; padding:14px 18px; border:1px dashed #94a3b8; border-radius:10px; font-family:Consolas, Menlo, Monaco, monospace; font-size:20px; letter-spacing:3px; font-weight:700; color:#111827; background:#f8fafc;">
+                      ${otp}
+                    </div>
+
+                    <p style="margin:0 0 16px 0; font-size:15px; line-height:1.6;">
+                      This OTP is valid for the next <strong>10 minutes</strong>.  
+                      Please do not share this code with anyone for security reasons.
+                    </p>
+
+                    <p style="margin:0 0 16px 0; font-size:15px; line-height:1.6;">
+                      We’re glad to have you with us and look forward to supporting you on your wellness journey.
+                    </p>
+
+                    <p style="margin:0; font-size:15px; line-height:1.6;">
+                      Warm regards,<br>
+                      <strong>Team CYT</strong>
+                    </p>
+
+                    <hr style="border:none; border-top:1px solid #e5e7eb; margin:20px 0;">
+
+                    <p class="muted" style="margin:0; font-size:12px; color:#94a3b8; line-height:1.5;">
+                      If you didn’t sign up for CYT, you can safely ignore this email.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:16px 24px; font-family:Arial, Helvetica, sans-serif; font-size:12px; color:#94a3b8;" align="left">
+              © ${new Date().getFullYear()} Choose Your Therapist LLP. All rights reserved.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+
 

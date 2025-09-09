@@ -9,7 +9,7 @@ import Therapists from "../models/Therapists.js";
 import { sendMail } from "../helper/mailer.js";
 import { getTimeDifferenceInSeconds } from "../helper/time.js";
 import { generate6DigitOTP, generateProfileCode } from "../helper/generate.js";
-import { loginOtpEmail, otpVerificationEmail, registrationSuccessEmail } from "../services/mailTemplates.js";
+import { loginOtpEmail, otpVerificationEmail, registrationOtpEmail, registrationSuccessEmail } from "../services/mailTemplates.js";
 
 export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
   if (!req.file) {
@@ -272,7 +272,7 @@ export const register = expressAsyncHandler(async (req, res, next) => {
       user.otp_count += 1;
       await user.save();
 
-      const html = registrationSuccessEmail(user.name);
+      const html = registrationOtpEmail(user.name,otp);
 
       await sendMail(email, subject, text, html);
 
