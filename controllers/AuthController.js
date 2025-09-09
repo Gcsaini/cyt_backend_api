@@ -50,7 +50,7 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
         res.status(400);
         return next(new Error("This user is already registred with us"));
       }
-      if (userExists.is_verified === 0) {
+      if (userExists && userExists.is_verified === 0) {
         res.status(400);
         return next(new Error("Your ID is not aproved yet by Admin"));
       }
@@ -64,7 +64,6 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
           return next(new Error("File size should be less than 500KB!"));
         }
       }
-
 
       session.startTransaction();
       let url = req.file.filename;
