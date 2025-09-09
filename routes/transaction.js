@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { isTherapist } from "../middlewares/authMiddleware.js";
+import { isAdmin, isTherapist } from "../middlewares/authMiddleware.js";
 import { UpdatePaymentStatus } from "../controllers/TransactionController.js";
 
 const router = Router();
 
-router.post("/update-payment-status",isTherapist,UpdatePaymentStatus);
+router.post("/update-payment-status",isAdmin,UpdatePaymentStatus);
 
 export default router;
