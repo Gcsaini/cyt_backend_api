@@ -32,6 +32,7 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
           "number.max": "Please enter a valid 10-digit phone number.",
         }),
     });
+    const session = await mongoose.startSession();
     try {
       const { error } = registerSchema.validate(req.body);
 
@@ -62,7 +63,7 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
         }
       }
 
-      const session = await mongoose.startSession();
+      
       session.startTransaction();
       let url = req.file.filename;
       const otp = generate6DigitOTP();
