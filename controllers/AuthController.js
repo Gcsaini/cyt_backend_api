@@ -65,7 +65,6 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
         }
       }
 
-      session.startTransaction();
       let url = req.file.filename;
       const otp = generate6DigitOTP();
       const subject = "Therapist Registration – OTP Verification & Approval Process";
