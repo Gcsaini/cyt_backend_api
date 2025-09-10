@@ -74,7 +74,7 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
         name,
         email,
         phone: phone.toString(),
-        otp: Math.floor(1000 + Math.random() * 9000),
+        otp,
         otp_count: 1,
         is_verified: 0,
         role: 1
@@ -93,7 +93,6 @@ export const therapistRegister = expressAsyncHandler(async (req, res, next) => {
 
       await session.commitTransaction();
       session.endSession();
-
 
       const html = therapistVerificationEmail(user.email, otp);
 
