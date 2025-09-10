@@ -175,6 +175,8 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
       is_logged_in
     } = req.body;
 
+
+
     if (!mongoose.Types.ObjectId.isValid(therapist)) {
       res.status(400);
       return next(new Error("Therapist Not Found."));

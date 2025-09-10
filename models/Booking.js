@@ -34,7 +34,7 @@ const bookingSchema = new Schema({
   },
   whom: {
     type: String,
-    required: true,
+    default:"Whom"
   },
   cname: {
     type: String,
