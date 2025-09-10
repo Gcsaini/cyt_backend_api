@@ -12,6 +12,7 @@ import Transaction from "../models/Transaction.js";
 import PaymentStatus from "../models/PaymentStatus.js";
 import Therapists from "../models/Therapists.js";
 import generateToken from "../config/generateToken.js";
+import { otpVerificationEmail } from "../services/mailTemplates.js";
 
 export const CreateWorkshop = expressAsyncHandler(async (req, res, next) => {
   const workshopSchema = Joi.object({
@@ -653,6 +654,8 @@ export const BookWorkshop = expressAsyncHandler(async (req, res, next) => {
     return next(new Error(error.details[0].message));
   }
 
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const {
       name,
@@ -673,23 +676,23 @@ export const BookWorkshop = expressAsyncHandler(async (req, res, next) => {
       return next(new Error("Workshop Not Exist."));
     }
 
-    const isExist = await Workshop.findById(workshopId);
+    const isExist = await Workshop.findById(workshopId).session(session);
 
     if (!isExist) {
       res.status(400);
       return next(new Error("Workshop not exist."));
     }
 
-    let user;
     let generatedOtp = generate6DigitOTP();
     let otp_count = 1;
+    let user;
 
     if (is_logged_in) {
       if (!mongoose.Types.ObjectId.isValid(user_id)) {
         res.status(400);
         return next(new Error("Invalid user id."));
       }
-      user = await Users.findById(user_id);
+      user = await Users.findById(user_id).session(session);
       if (!user) {
         res.status(400);
         return next(new Error("User not found."));
@@ -697,10 +700,10 @@ export const BookWorkshop = expressAsyncHandler(async (req, res, next) => {
 
       user.otp = generatedOtp;
       user.otp_count = (user.otp_count || 0) + 1;
-      await user.save();
+      await user.save({ session });
     } else {
       email = email.toLowerCase();
-      user = await Users.findOne({ email });
+      user = await Users.findOne({ email }).session(session);
       if (user) {
         if (user.is_verified === 1) {
           res.status(400);
@@ -708,57 +711,64 @@ export const BookWorkshop = expressAsyncHandler(async (req, res, next) => {
         }
         user.otp = generatedOtp;
         user.otp_count = (user.otp_count || 0) + 1;
-        await user.save();
+        await user.save({ session });
       } else {
 
-        user = await Users.create({
-          name,
-          email,
-          phone,
-          otp: generatedOtp,
-          otp_count
-        });
+        user = await Users.create(
+          [{
+            name,
+            email,
+            phone,
+            otp: generatedOtp,
+            otp_count: 1,
+          }],
+          { session }
+        );
+        user = user[0];
 
       }
     }
 
+    const existingBooking = await WorkshopBooking.findOne({
+      workshop: isExist._id,
+      user: user._id,
+    }).session(session);
+
+    if (existingBooking) {
+      throw new Error("You have already booked this workshop.");
+    }
+
+    const booking = await WorkshopBooking.create(
+      [{
+        workshop: isExist._id,
+        user: user._id,
+        is_student,
+        program_name,
+        institution_name,
+        amount,
+      }],
+      { session }
+    );
+
     const subject = "Welcome to CYT";
-    const text = `Hello Thank you for registering.Best regards,CYT`;
+    const text = `Hello Thank you for registering use the this otp ${generatedOtp} to verify booking.Best regards,CYT`;
+    const html = otpVerificationEmail(generatedOtp);
 
-    const html = `<p>Hello ${user.name},</p><p>Thank you for registering.</p><p>Use the below otp to verify account</p><p>Otp:${generatedOtp}</p>`;
+    await sendMail(email, subject, text, html);
 
+    await session.commitTransaction();
+    session.endSession();
 
-    const isBookingExists = await WorkshopBooking.findOne({
-      workshop: isExist._id,
-      user: user._id,
+    return res.status(201).json({
+      status: true,
+      message: "Booking saved successfully. An OTP was sent to your email.",
+      data: { id: booking[0]._id },
     });
-    if (isBookingExists) {
-      res.status(400);
-      return next(new Error("You have already booked this workshop."));
-    }
-    const booked = await WorkshopBooking.create({
-      workshop: isExist._id,
-      user: user._id,
-      is_student,
-      program_name,
-      institution_name,
-      amount
-    });
-    if (booked) {
-      await sendMail(email, subject, text, html);
-      res.status(201).json({
-        status: true,
-        message: "Booking saved successfully.And an otp sent to your email.",
-        data: {
-          id: booked._id,
-        },
-      });
-    } else {
-      res.status(400);
-      return next(new Error("Failed to book workshop."));
-    }
+
 
   } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
     return next(new Error(err.message));
   }
 });
@@ -880,7 +890,7 @@ export const savePaymentDetails = expressAsyncHandler(async (req, res, next) => 
       status: true,
       message: "Payment Success.",
       data: isBookingDetail,
-      token:generateToken(isBookingDetail.user._id,isBookingDetail.user.role)
+      token: generateToken(isBookingDetail.user._id, isBookingDetail.user.role)
     });
   } catch (err) {
     return next(new Error(err.message));
@@ -899,7 +909,7 @@ export const GetMyBookings = expressAsyncHandler(async (req, res, next) => {
       return next(new Error("Booking invalid."));
     }
 
-    let result = await WorkshopBooking.find({ user: userId })
+    let result = await WorkshopBooking.find({ user: userId, transaction: { $exists: true, $ne: null } })
       .populate({
         path: "user",
         select: "name email mobile profile age gender",

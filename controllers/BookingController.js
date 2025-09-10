@@ -11,7 +11,7 @@ import Transaction from "../models/Transaction.js";
 import { PAYMENT_STATUS, SESSION_STATUS } from "../helper/status.js";
 import generateToken from "../config/generateToken.js";
 import PaymentStatus from "../models/PaymentStatus.js";
-import { adminText, bookingConfirmationMail, clientText, newSessionAdminMail, therapistSessionMail, therapistText } from "../services/mailTemplates.js";
+import { adminText, bookingConfirmationMail, clientText, newSessionAdminMail, otpVerificationEmail, therapistSessionMail, therapistText } from "../services/mailTemplates.js";
 
 export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
   const validateSchema = Joi.object({
@@ -118,13 +118,30 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
       "number.min": "Amount must be greater than or equal to 0",
       "any.required": "Amount is required",
     }),
-    age: Joi.number().integer().min(18).max(100).required().messages({
-      "number.base": "Age must be a number",
-      "number.integer": "Age must be an integer",
-      "number.min": "Age must be at least 12",
-      "number.max": "Age must be less than or equal to 100",
-      "any.required": "Age is required",
+    age: Joi.alternatives().conditional(Joi.object({
+      whom: Joi.valid("For Other").required(),
+      is_logged_in: Joi.valid(false).required(),
+    }).unknown(), {
+      then: Joi.number()
+        .integer()
+        .min(12)
+        .max(100)
+        .required()
+        .messages({
+          "number.base": "Age must be a number",
+          "number.integer": "Age must be an integer",
+          "number.min": "Age must be at least 12",
+          "number.max": "Age must be less than or equal to 100",
+          "any.required": "Age is required when booking for others as a guest user",
+        }),
+      otherwise: Joi.number()
+        .integer()
+        .min(12)
+        .max(100)
+        .optional()
+        .allow(null, ""),
     }),
+
   }).unknown(true);
 
   const { error } = validateSchema.validate(req.body);
@@ -134,6 +151,9 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
     return next(new Error(error));
   }
 
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const {
       name,
@@ -142,7 +162,7 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
       format,
       whom,
       cname,
-      realtion_with_client,
+      relation_with_client,
       age,
       amount,
       notes,
@@ -153,7 +173,7 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
 
     if (!mongoose.Types.ObjectId.isValid(therapist)) {
       res.status(400);
-      return next(new Error("Therapist Not Exist."));
+      return next(new Error("Therapist Not Found."));
     }
 
     const isExist = await Therapists.findById(therapist);
@@ -164,7 +184,7 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
     }
 
     let user;
-    let generatedOtp = generate6DigitOTP();
+    const generatedOtp = generate6DigitOTP();
     let otp_count = 1;
     let email = req.body.email;
 
@@ -181,10 +201,10 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
 
       user.otp = generatedOtp;
       user.otp_count = otp_count;
-      await user.save();
+      await user.save({ session });
     } else {
       email = email.toLowerCase();
-      user = await Users.findOne({ email });
+      user = await Users.findOne({ email }).session(session);
       if (user) {
         if (user.is_verified === 1) {
           res.status(400);
@@ -192,58 +212,60 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
         }
         user.otp = generatedOtp;
         user.otp_count = otp_count;
-        await user.save();
+        await user.save({ session });
       } else {
-
-        user = await Users.create({
-          name,
-          email,
-          phone,
-          otp: generatedOtp,
-          otp_count,
-          age
-        });
-
+        user = await Users.create(
+          [{
+            name,
+            email,
+            phone,
+            otp: generatedOtp,
+            otp_count,
+            age,
+          }],
+          { session }
+        );
+        user = user[0];
       }
     }
 
-    const subject = "Welcome to CYT";
-    const text = `Hello Thank you for registering.Best regards CYT`;
+    const booked = await Booking.create(
+      [{
+        therapist,
+        client: user._id,
+        service,
+        format,
+        whom,
+        cname,
+        age,
+        relation_with_client,
+        notes,
+        amount,
+        otp: generatedOtp,
+      }],
+      { session }
+    );
 
-    const html = `<p>Hello ${user.name},</p><p>Thank you for registering.</p><p>Use the below otp to verify account</p><p>Otp:${generatedOtp}</p>`;
-    const booked = await Booking.create({
-      therapist,
-      client: user._id,
-      service,
-      format,
-      whom,
-      cname,
-      age,
-      realtion_with_client,
-      notes,
-      amount,
-      otp: generatedOtp,
-    });
+    const subject = "Welcome to CYT";
+    const text = `Hello Thank you for registering. Use this otp to verify ${generatedOtp}.Best regards CYT`;
+    const html = otpVerificationEmail(generatedOtp);
     await sendMail(email, subject, text, html);
 
-    if (booked) {
-      res.status(201).json({
-        status: true,
-        message: "Booking saved successfully.",
-        data: {
-          id: booked._id,
+    await session.commitTransaction();
+    session.endSession();
 
-        },
-      });
-    } else {
-      res.status(400);
-      return next(new Error("Failed to checkout."));
-    }
+    return res.status(201).json({
+      status: true,
+      message: "Booking saved successfully.",
+      data: { id: booked[0]._id },
+    });
+
   } catch (err) {
-    return next(new Error(err.message));
+    await session.abortTransaction();
+    session.endSession();
+    return next(new Error(err.message || "Something went wrong"));
   }
 });
-
 
 export const generatePaymentQR = expressAsyncHandler(async (req, res, next) => {
   const bookingId = req.params.id;
@@ -411,7 +433,7 @@ export const getBookings = expressAsyncHandler(async (req, res, next) => {
   try {
     let findKey = req.user.role === 1 ? "therapist" : "client";
     let select = req.user.role === 1 ? "-otp" : "";
-    let result = await Booking.find({ [findKey]: req.user._id }).select(select)
+    let result = await Booking.find({ [findKey]: req.user._id, transaction: { $exists: true, $ne: null } }).select(select)
       .populate({
         path: "client",
         select: "name email phone profile age gender",
@@ -562,7 +584,7 @@ export const getBookingsForAdmin = expressAsyncHandler(async (req, res, next) =>
       .exec();
 
     let paymentStatus = await PaymentStatus.find();
-   
+
     res.status(201).json({
       status: true,
       message: "Fetched successfully.",
