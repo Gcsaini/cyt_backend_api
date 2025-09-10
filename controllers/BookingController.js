@@ -77,11 +77,15 @@ export const bookTherapist = expressAsyncHandler(async (req, res, next) => {
       "string.empty": "Format is required",
       "any.required": "Format is required",
     }),
-    whom: Joi.string().valid("For Other", "Self").required().messages({
-      "string.base": "Whom must be a string",
-      "string.empty": "Whom is required",
-      "any.required": "Whom is required",
-      "any.only": 'Whom must be one of "For Other" or "Self"',
+    whom: Joi.when("is_logged_in", {
+      is: true,
+      then: Joi.string().valid("For Other", "Self").required().messages({
+        "string.base": "Whom must be a string",
+        "string.empty": "Whom is required",
+        "any.required": "Whom is required",
+        "any.only": 'Whom must be one of "For Other" or "Self"',
+      }),
+      otherwise: Joi.optional().allow("", null),
     }),
     cname: Joi.string()
       .min(2)
