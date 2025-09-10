@@ -732,6 +732,7 @@ export const BookWorkshop = expressAsyncHandler(async (req, res, next) => {
     const existingBooking = await WorkshopBooking.findOne({
       workshop: isExist._id,
       user: user._id,
+      transaction: { $ne: null }
     }).session(session);
 
     if (existingBooking) {
