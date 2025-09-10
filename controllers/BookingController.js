@@ -344,7 +344,7 @@ export const saveTransactionId = expressAsyncHandler(async (req, res, next) => {
       res.status(400);
       return next(new Error("Booking invalid."));
     }
-    const isBookingDetail = await Booking.findById(booking_id).populate("client", "_id name email age").populate({
+    const isBookingDetail = await Booking.findById(booking_id).populate("client", "_id name email age role").populate({
       path: "therapist",
       select: "_id user profile_code",
       populate: {
