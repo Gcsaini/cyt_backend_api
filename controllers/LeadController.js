@@ -1,7 +1,8 @@
 import expressAsyncHandler from "express-async-handler";
 import Joi from "joi";
 import Lead from "../models/Lead.js";
-
+import { leadNotificationEmail } from "../services/mailTemplates.js";
+import { sendMail } from "../helper/mailer.js";
 export const saveLead = expressAsyncHandler(async (req, res, next) => {
   const validateSchema = Joi.object({
     name: Joi.string().min(2).required().messages({
@@ -35,6 +36,12 @@ export const saveLead = expressAsyncHandler(async (req, res, next) => {
       email,
       concern,
     });
+
+    const sendMailid = "chooseyourtherapist@gmail.com"
+    const subject = "Welcome to CYT";
+    const text = `Hello Thank you hae new lead`;
+    const html = leadNotificationEmail(name, phone, email, concern);
+    await sendMail(sendMailid, subject, text, html);
 
     return res.status(201).json({
       status: true,

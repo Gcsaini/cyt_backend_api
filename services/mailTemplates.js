@@ -652,3 +652,66 @@ export const registrationOtpEmail = ( name = "User", otp = "123456" ) => `
 `;
 
 
+export const leadNotificationEmail = ({
+  name,
+  phone,
+  email,
+  concern,
+}) => {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>New Lead Received</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      color: #333;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    h2 {
+      color: #4CAF50;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    .footer {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>New Lead Received</h2>
+    <p>A new lead has been submitted through the website. Here are the details:</p>
+
+    <h3>Lead Information:</h3>
+    <ul>
+      <li><strong>Full Name:</strong> ${name}</li>
+      <li><strong>Phone:</strong> ${phone}</li>
+      <li><strong>Email:</strong> ${email}</li>
+      <li><strong>Concern:</strong> ${concern}</li>
+    </ul>
+
+    <div class="footer">
+      <p>Please follow up with this lead as soon as possible.</p>
+      <p>Best regards,<br>ChooseYourTherapist Team</p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+};
+
